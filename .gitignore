@@ -1,0 +1,11 @@
+QPMIL-VL/
+outputs/
+.env
+__pycache__/
+*.pyc
+checkpoints/
+*.bin
+*.pt
+*.pth
+.DS_Store
+data

@@ -1,0 +1,35 @@
+# NaviPath-MoE 完整方法（研究計劃 §5）
+# python train_continual.py --config configs/navipath_full.yaml --order reverse
+device: auto                              # auto: cuda > mps > cpu
+data_root: /path/to/conch_features        # 內含 tcga_lung/brca/rcc/esca
+feat_dim: 512
+joint_train_acc: 0.908                    # QPMIL forward 上界（算 Upper-bound Ratio）
+
+# agent routing
+num_experts: 4                            # 先 4，再試 6（ESCA 只有 158 張，寧少勿多）
+expert_hidden: 256                        # MLP expert: 512->256->512 殘差
+beta: 0.3                                 # fusion: w = beta*macro + (1-beta)*micro
+tau: 1.0
+use_experts: true
+use_macro: true
+
+# replay-free consolidation
+ema_decay: 0.7
+consolidate_a: 4.0
+consolidate_b: 2.0
+
+# patch budget
+train_top_k: 0                            # 訓練 0=全選；評估掃 {All,256,128,64,32}
+
+# optim（對齊 QPMIL：Adam lr=1e-3 wd=5e-4, 12 epochs/task）
+lr: 0.001
+weight_decay: 0.0005
+epochs: 12
+
+loss_weights:
+  lambda: 0.5
+  beta_S: 0.5
+  gamma: 0.5        # L_sem
+  eta: 0.01         # L_bal
+  xi: 0.0           # L_route（先關，Day-16 後視情況開）
+  use_consolidation: false

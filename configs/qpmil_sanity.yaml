@@ -1,0 +1,25 @@
+# 純 QPMIL backbone sanity（Milestone 1）。對齊論文 paper ~0.890 / reverse ~0.859。
+device: auto
+data_root: /Users/aaron/research/01_navipath/data
+feat_dim: 512
+joint_train_acc: 0.908
+num_experts: 1
+expert_hidden: 256
+beta: 0.0
+tau: 1.0
+use_experts: false
+use_macro: false
+ema_decay: 0.7
+consolidate_a: 4.0
+consolidate_b: 2.0
+train_top_k: 0
+lr: 0.001
+weight_decay: 0.0005
+epochs: 12
+loss_weights:
+  lambda: 0.5
+  beta_S: 0.5
+  gamma: 0.0
+  eta: 0.0
+  xi: 0.0
+  use_consolidation: false
