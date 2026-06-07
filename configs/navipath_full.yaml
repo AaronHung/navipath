@@ -1,7 +1,7 @@
 # NaviPath-MoE 完整方法（研究計劃 §5）
 # python train_continual.py --config configs/navipath_full.yaml --order reverse
 device: auto                              # auto: cuda > mps > cpu
-data_root: /path/to/conch_features        # 內含 tcga_lung/brca/rcc/esca
+data_root: /Users/aaron/research/01_navipath/data
 feat_dim: 512
 joint_train_acc: 0.908                    # QPMIL forward 上界（算 Upper-bound Ratio）
 

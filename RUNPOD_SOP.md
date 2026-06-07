@@ -71,9 +71,9 @@ pip install "transformers>=4.40,<5" huggingface-hub==0.36.2 \
 python - <<EOF
 import yaml
 cfg = yaml.load(open("QPMIL-VL/configs/main.yaml"), Loader=yaml.FullLoader)
-cfg["dataset_root_dir"]    = "/workspace/can_dataset"
-cfg["class_ensemble_path"] = "/workspace/01_navipath/QPMIL-VL/class_ensemble/class_ensemble.json"
-cfg["conch_ckpt_path"]     = "/workspace/checkpoints/conch/pytorch_model.bin"
+cfg["dataset_root_dir"]    = "/workspace/datasets/can_dataset"
+cfg["class_ensemble_path"] = "/workspace/src/navipath/QPMIL-VL/class_ensemble/class_ensemble.json"
+cfg["conch_ckpt_path"]     = "/workspace/src/navipath/checkpoints/conch/pytorch_model.bin"
 yaml.dump(cfg, open("QPMIL-VL/configs/main.yaml","w"), allow_unicode=True)
 print("config updated")
 EOF
