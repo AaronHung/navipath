@@ -1,0 +1,32 @@
+# Ablation B: MicroRouter + ExpertBank + L_sem, No MacroRouter, No Consolidation
+# 用途：展示加入 Expert 和語義錨後的效果（還沒加 MacroRouter 和 Consolidation）
+# 論文 Ablation Table Row: "NaviPath w/o MacroRouter & Consolidation"
+device: auto
+feat_dim: 512
+joint_train_acc: 0.908
+
+num_experts: 4
+expert_hidden: 256
+beta: 0.3
+tau: 1.0
+use_experts: true       # ← 開 ExpertBank
+use_macro: false        # ← 關掉 MacroRouter
+
+ema_decay: 0.7
+consolidate_a: 4.0
+consolidate_b: 2.0
+
+train_top_k: 128
+
+lr: 0.001
+weight_decay: 0.0005
+epochs: 12
+
+loss_weights:
+  lambda: 0.5
+  beta_S: 0.5
+  gamma: 0.5            # ← 開 L_sem
+  eta: 0.01
+  xi: 0.0
+  zeta: 1.0
+  use_consolidation: false  # ← 關掉 Consolidation
