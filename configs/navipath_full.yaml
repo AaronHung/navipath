@@ -19,7 +19,7 @@ consolidate_a: 4.0
 consolidate_b: 2.0
 
 # patch budget
-train_top_k: 0                            # 訓練 0=全選；評估掃 {All,256,128,64,32}
+train_top_k: 128   # 訓練時強迫選 128 個 patch，啟動 L_soft_route（可微分）
 
 # optim（對齊 QPMIL：Adam lr=1e-3 wd=5e-4, 12 epochs/task）
 lr: 0.001
@@ -31,5 +31,6 @@ loss_weights:
   beta_S: 0.5
   gamma: 0.5        # L_sem
   eta: 0.01         # L_bal
-  xi: 0.0           # L_route（先關，Day-16 後視情況開）
+  xi: 0.0           # L_route（先關）
+  zeta: 1.0         # L_soft_route：可微分 routing 損失，訓練 router 選好 patch
   use_consolidation: true

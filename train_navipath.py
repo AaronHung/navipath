@@ -74,7 +74,14 @@ class NaviPathMoE(nn.Module):
         self._F_p = None
 
     def forward(self, Z, device, top_k=0):
-        """Z:[n,512] → dict with logits, w, score, sim_txt."""
+        """Z:[n,512] → dict with logits, logits_soft, w, score, sim_txt, Z_exp.
+
+        Two parallel paths:
+        1. Backbone path  : Z[idx] (original) → frozen backbone → logits (L_C)
+        2. Soft-route path: softmax(score[idx]) ⊙ Z[idx] aggregate → cosine logits
+                            (L_soft_route) — DIFFERENTIABLE, teaches router which
+                            patches help classification, gradient flows to router.
+        """
         f_txt = self._get_f_txt(device)   # [C,512]
         F_p   = self._get_F_p(device)     # [M,512]
 
@@ -85,18 +92,28 @@ class NaviPathMoE(nn.Module):
 
         idx = top_k_select(score, top_k)
 
-        # Backbone always receives ORIGINAL patch features (not expert-transformed).
-        # Expert-transformed features are returned separately for an auxiliary loss
-        # (L_exp = cosine-sim cross-entropy via text features).  Separating the two
-        # paths ensures task-T expert updates never corrupt the frozen backbone's
-        # view of task-(T-1) features, eliminating the fake catastrophic forgetting.
+        # ── Soft-route path (differentiable) ──────────────────────────────────
+        # Weighted average of selected patches → cosine-sim classification.
+        # Unlike hard top-k, softmax weights keep gradients alive so the router
+        # learns "selecting patch i → better prediction" directly from L_soft_route.
+        logits_soft = None
+        if top_k > 0:
+            logit_scale = self.backbone.model.logit_scale.exp().detach()
+            w_soft = F.softmax(score[idx], dim=0)          # [K] – differentiable
+            z_soft = (w_soft.unsqueeze(-1) * Z[idx]).sum(0)  # [D]
+            logits_soft = (z_soft @ f_txt.T) * logit_scale   # [C]
+
+        # ── Expert path (auxiliary) ────────────────────────────────────────────
+        # Experts refine selected patch features; used only for L_exp, NOT fed
+        # into the backbone (prevents task-specific feature corruption = forgetting).
         Z_exp = None
         if self.use_experts and self.experts is not None:
-            Z_exp = self.experts(Z[idx], w[idx])   # [n_sel, D]  — only for L_exp
+            Z_exp = self.experts(Z[idx], w[idx])   # [n_sel, D]
 
+        # ── Backbone path (original features, frozen) ──────────────────────────
         logits, _ = self.backbone.aggregate_and_predict(Z[idx], no_grad=False)
-        return {"logits": logits, "w": w, "score": score,
-                "sim_txt": sim_txt, "Z_exp": Z_exp}
+        return {"logits": logits, "logits_soft": logits_soft,
+                "w": w, "score": score, "sim_txt": sim_txt, "Z_exp": Z_exp}
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -132,11 +149,19 @@ def train_one_task(model, importance, loader, device, task_pos,
             # L_C: backbone sees ORIGINAL patch features — no expert corruption
             L_C = F.cross_entropy(out["logits"], gt)
 
+            # L_soft_route: differentiable routing loss — soft-weighted patch avg
+            # → cosine-sim classification.  Gradient flows back through softmax
+            # weights to the router score, teaching it which patches matter.
+            zeta = wt.get("zeta", 0.0)
+            if out["logits_soft"] is not None and zeta > 0:
+                L_soft_route = F.cross_entropy(out["logits_soft"].unsqueeze(0), gt)
+            else:
+                L_soft_route = torch.tensor(0., device=device)
+
             # L_exp: auxiliary cosine-sim loss on expert-transformed features
-            # gives expert bank a gradient signal without touching the backbone path
             if out["Z_exp"] is not None:
-                z_exp_agg = out["Z_exp"].mean(dim=0)          # [D]
-                exp_logits = (z_exp_agg @ f_txt.T) * logit_scale  # [C]
+                z_exp_agg = out["Z_exp"].mean(dim=0)
+                exp_logits = (z_exp_agg @ f_txt.T) * logit_scale
                 L_exp = F.cross_entropy(exp_logits.unsqueeze(0), gt)
             else:
                 L_exp = torch.tensor(0., device=device)
@@ -153,6 +178,7 @@ def train_one_task(model, importance, loader, device, task_pos,
                 s_route = l_route(w, t_out["w"])
 
             loss = (L_C
+                    + zeta  * L_soft_route
                     + 0.5   * L_exp
                     + gamma * s_sem.to(device)
                     + eta   * s_bal.to(device)
