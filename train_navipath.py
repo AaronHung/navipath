@@ -84,12 +84,19 @@ class NaviPathMoE(nn.Module):
             w = fuse(self.macro(Z), w_micro, self.beta)
 
         idx = top_k_select(score, top_k)
-        Z_sel = Z[idx]
-        if self.use_experts and self.experts is not None:
-            Z_sel = self.experts(Z_sel, w[idx])
 
-        logits, _ = self.backbone.aggregate_and_predict(Z_sel, no_grad=False)
-        return {"logits": logits, "w": w, "score": score, "sim_txt": sim_txt}
+        # Backbone always receives ORIGINAL patch features (not expert-transformed).
+        # Expert-transformed features are returned separately for an auxiliary loss
+        # (L_exp = cosine-sim cross-entropy via text features).  Separating the two
+        # paths ensures task-T expert updates never corrupt the frozen backbone's
+        # view of task-(T-1) features, eliminating the fake catastrophic forgetting.
+        Z_exp = None
+        if self.use_experts and self.experts is not None:
+            Z_exp = self.experts(Z[idx], w[idx])   # [n_sel, D]  — only for L_exp
+
+        logits, _ = self.backbone.aggregate_and_predict(Z[idx], no_grad=False)
+        return {"logits": logits, "w": w, "score": score,
+                "sim_txt": sim_txt, "Z_exp": Z_exp}
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -119,13 +126,20 @@ def train_one_task(model, importance, loader, device, task_pos,
             out = model(Z, device, top_k)
 
             gt = torch.tensor([label], device=device)
-            # QPMIL losses via backbone (classification only; L_M and L_S come from QPMIL forward)
             logit_scale = model.backbone.model.logit_scale.exp().detach()
             f_txt = model._get_f_txt(device)
-            bag = out["logits"]  # already from aggregate_and_predict
 
-            # classification loss
-            L_C = F.cross_entropy(bag, gt)
+            # L_C: backbone sees ORIGINAL patch features — no expert corruption
+            L_C = F.cross_entropy(out["logits"], gt)
+
+            # L_exp: auxiliary cosine-sim loss on expert-transformed features
+            # gives expert bank a gradient signal without touching the backbone path
+            if out["Z_exp"] is not None:
+                z_exp_agg = out["Z_exp"].mean(dim=0)          # [D]
+                exp_logits = (z_exp_agg @ f_txt.T) * logit_scale  # [C]
+                L_exp = F.cross_entropy(exp_logits.unsqueeze(0), gt)
+            else:
+                L_exp = torch.tensor(0., device=device)
 
             # router losses
             w = out["w"]
@@ -139,6 +153,7 @@ def train_one_task(model, importance, loader, device, task_pos,
                 s_route = l_route(w, t_out["w"])
 
             loss = (L_C
+                    + 0.5   * L_exp
                     + gamma * s_sem.to(device)
                     + eta   * s_bal.to(device)
                     + wt.get("xi", 0) * s_route.to(device))
