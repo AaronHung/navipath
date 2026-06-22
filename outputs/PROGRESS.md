@@ -125,4 +125,16 @@ python tools/plot_results.py --outputs outputs --figdir outputs/figs
 python tools/plot_results.py --outputs outputs --figdir outputs/figs --p2 --p2-order paper --p2-fold 1
 ```
 
+## ⚠️ 重大發現（2026-06-23）：Router catastrophic forgetting
+
+TASK 2 reverse f1 跑出 oldtask_budget（esca，最舊任務）= **NO-GO 且崩潰**：
+`router@64 = 0.133`，遠輸 random 0.80。對照 paper order 同一個 esca（剛學完）router@64=0.933。
+→ 判定為 **router 自身的 catastrophic forgetting**（非 bug；All budget 四法皆 0.867、heuristics 同條件正常、訓練 log 顯示 esca 先學好後被覆寫）。
+
+**完整紀錄 + Plan B 設計 + 實驗/寫稿計畫見 [../ROUTER_FORGETTING_v0.4.md](../ROUTER_FORGETTING_v0.4.md)。**
+
+決議：(a) 不中斷，等 reverse f2/f3 確認複現；(b) 設計草稿已寫（暫不動 code）；
+(c) 敘事三 fold 後二選一：A 誠實分析稿（預設）/ B 加 router consolidation 救。
+待補：reverse f2/f3 oldtask（跑中）、paper order oldtask（最舊=lung，對稱對照）。
+
 ## TASK 4 — RunPod：結果推回 GitHub  [未開始]
