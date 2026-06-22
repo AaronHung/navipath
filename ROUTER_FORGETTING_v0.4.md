@@ -12,7 +12,8 @@
   router@64 = **0.133**，遠輸 random 0.80。判定為 **router 自身的 catastrophic forgetting**（非 bug，見 §2）。
 - **決議**：(a) 不中斷，讓 reverse f2/f3 跑完確認複現；(b) 先寫本設計草稿備用；
   (c) 敘事在三 fold 確認後二選一（§3）：**A 誠實分析稿（預設）** / **B 加 router consolidation 救**。
-- **待補資料**：reverse f2/f3 esca oldtask（跑中）；paper order 的 oldtask（最舊=lung，尚未跑，見 §5）。
+- **2026-06-23 06:xx** — reverse f2/f3 跑完並 pull。**三 fold 全崩，GO=0/3**：esca router@64 三 fold mean=0.333（f1 0.133 / f2 ~0.40 / f3 0.467），輸給 random 0.822、prototype 0.778、semantic 0.778（Δ@64=−0.489）。**R-1 複現風險解除：router forgetting 為穩定強效應。**
+- **待補資料**：paper order 的 oldtask（最舊=lung，尚未跑，見 §5）——用來排除「esca 樣本少/難」混淆（R-2/R-3）。
 
 ---
 
@@ -52,7 +53,7 @@
 
 ### 1.3 fold 狀態
 
-- reverse esca oldtask：f1 ✗（崩）；**f2 / f3 跑中（待確認複現）**。
+- reverse esca oldtask：**f1/f2/f3 全 ✗（崩），GO=0/3，已確認複現**（三 fold mean router@64=0.333 vs heuristics ~0.78–0.82）。
 - recent-task GO 已複現：paper f1/2/3 + reverse f1（last task）。
 
 ---

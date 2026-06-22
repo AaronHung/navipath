@@ -135,6 +135,9 @@ TASK 2 reverse f1 跑出 oldtask_budget（esca，最舊任務）= **NO-GO 且崩
 
 決議：(a) 不中斷，等 reverse f2/f3 確認複現；(b) 設計草稿已寫（暫不動 code）；
 (c) 敘事三 fold 後二選一：A 誠實分析稿（預設）/ B 加 router consolidation 救。
-待補：reverse f2/f3 oldtask（跑中）、paper order oldtask（最舊=lung，對稱對照）。
+
+**2026-06-23 更新：reverse f1/f2/f3 全部 pull 完成，三 fold 全崩 GO=0/3**（esca router@64
+mean=0.333，輸 random 0.822 / prototype 0.778 / semantic 0.778）。複現確認，效應強。
+待補：paper order oldtask（最舊=lung，`--eval-tasks="0"`）排除 esca 樣本少/難的混淆。
 
 ## TASK 4 — RunPod：結果推回 GitHub  [未開始]
