@@ -41,14 +41,52 @@
 - `outputs/_smoke` 已刪除 ✅
 
 ### [5] commit + push
-- commit：[待填 hash]
+- commit：`6f56a26` feat(v0.4): track outputs/, add --eval-tasks for old-task budget ✅
 - 內容：.gitignore + train_router_v0.py + SOP_v0.4.md（=修正）+ outputs/PROGRESS.md
+- 另外也加了 `outputs_history/**/*.pt` 到 .gitignore（避免 500MB 冗餘 .pt 備份進 repo；報告需要的 json/log/png 已在 git）。
+
+**TASK 0 完成。** 下一步：去 RunPod 貼 TASK 1（git pull + 體檢）。
 
 ---
 
-## TASK 1 — RunPod：同步 + 體檢  [未開始]
+## SYNC — RunPod outputs 上 GitHub（2026-06-22）  [完成]
 
-## TASK 2 — RunPod：router 補格 + old-task  [未開始]
+- 起因：RunPod 才是結果來源，Mac 的 outputs/ 只是 smoke 殘留。
+- RunPod：`git pull --rebase`（快轉到 6f56a26）→ `git add outputs/`（57 檔，0 非 outputs/）→ commit + push。
+  - 過程修了兩個 RunPod 容器問題：git 身分未設（`git config user.email/name`）、HTTPS 需 PAT token（`git remote set-url` 帶 token）。
+  - commit `b18feb1` results(v0.4): RunPod authoritative outputs（47 MiB）✅
+- Mac：`git clean -fd outputs/`（刪 14 個本地重複）→ `git pull --ff-only` 到 `b18feb1` ✅
+- 從此 **RunPod 為 outputs/ 唯一來源**，Mac 不再 push 結果（PROGRESS.md 例外）。
+
+### 既有結果盤點（b18feb1，已驗證為真實非 smoke）
+
+- baseline：qpmil paper f1/2/3 + reverse f1/2/3 → **6/6** ✅
+- router_v0：paper f1/2/3 + reverse f2/3 → **5/6**（缺 reverse f1）；5 個皆 GO ✅
+  - reverse f2/f3 eval=lung(95 張) 數字細緻（如 0.9263=88/95）→ 確為完整評估
+  - paper f2/f3 eval=esca(15 張) → 真實但小樣本
+- oldtask_budget：**0/3**（缺 reverse f1/f2/f3 task0）
+- bonus：navipath_full / micro 各 fold 的 M5-M9 也都在
+
+---
+
+## TASK 1 — RunPod：同步 + 體檢  [可略/已等價完成]
+SYNC 已完成 git pull 與檔案盤點；正式 TASK 1 體檢可選跑（環境 nvidia-smi / torch）。
+
+## TASK 2 — RunPod：補 router reverse f1 + 三個 oldtask  [待跑，僅 3 條]
+
+> 開跑前先 `cd /workspace/src/navipath && git pull --ff-only`（拿這份 PROGRESS 更新）。
+> 防覆蓋已內建：router_v0_reverse_fold2/3 已存在 → 自動 [skip]。
+
+```bash
+# (1) reverse f1：一次補 router_v0 reverse f1 + oldtask reverse f1
+python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold1.pt --order reverse --fold 1 --eval-tasks="-1,0" --epochs 5 2>&1 | tee outputs/router_v0_reverse_fold1.log
+# (2) reverse f2：只補 oldtask（router_v0 已存在→skip）
+python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold2.pt --order reverse --fold 2 --eval-tasks="0" --epochs 5 2>&1 | tee outputs/oldtask_budget_reverse_f2_task0.log
+# (3) reverse f3：只補 oldtask
+python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold3.pt --order reverse --fold 3 --eval-tasks="0" --epochs 5 2>&1 | tee outputs/oldtask_budget_reverse_f3_task0.log
+```
+
+跑完 13/13：baseline 6 + router 6 + oldtask 3（注意 router 第 6 格 = reverse f1 由 (1) 產生）。
 
 ## TASK 3 — RunPod：彙整結果  [未開始]
 
