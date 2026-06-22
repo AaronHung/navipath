@@ -65,7 +65,8 @@ TASK 2 跑完應新增 7 個 canonical json（router x4 + old-task x3）。
     python -c "import train_router_v0"
     python train_router_v0.py --order reverse --fold 1 \
       --backbone-ckpt outputs/qpmil_reverse_fold1.pt \
-      --eval-tasks "-1,0" --epochs 1 --max-train 16 --max-eval 8 --out outputs/_smoke
+      --eval-tasks="-1,0" --epochs 1 --max-train 16 --max-eval 8 --out outputs/_smoke
+    # 注意：--eval-tasks 值以 - 開頭，必須用 = 形式，否則 argparse 會誤判為旗標。
     確認 outputs/_smoke/router_v0_reverse_fold1.json 與
          outputs/_smoke/oldtask_budget_reverse_f1_task0.json 都生成且含 task_index，
     然後 rm -rf outputs/_smoke。
@@ -107,9 +108,11 @@ TASK 2 跑完應新增 7 個 canonical json（router x4 + old-task x3）。
 [執行] 逐條跑，全程 tee：
   python train_router_v0.py --backbone-ckpt outputs/qpmil_paper_fold2.pt   --order paper   --fold 2 --epochs 5 2>&1 | tee outputs/router_v0_paper_fold2.log
   python train_router_v0.py --backbone-ckpt outputs/qpmil_paper_fold3.pt   --order paper   --fold 3 --epochs 5 2>&1 | tee outputs/router_v0_paper_fold3.log
-  python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold1.pt --order reverse --fold 1 --eval-tasks "-1,0" --epochs 5 2>&1 | tee outputs/router_v0_reverse_fold1.log
-  python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold2.pt --order reverse --fold 2 --eval-tasks "-1,0" --epochs 5 2>&1 | tee outputs/router_v0_reverse_fold2.log
-  python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold3.pt --order reverse --fold 3 --eval-tasks "0"    --epochs 5 2>&1 | tee outputs/oldtask_budget_reverse_f3_task0.log
+  python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold1.pt --order reverse --fold 1 --eval-tasks="-1,0" --epochs 5 2>&1 | tee outputs/router_v0_reverse_fold1.log
+  python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold2.pt --order reverse --fold 2 --eval-tasks="-1,0" --epochs 5 2>&1 | tee outputs/router_v0_reverse_fold2.log
+  python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold3.pt --order reverse --fold 3 --eval-tasks="0"    --epochs 5 2>&1 | tee outputs/oldtask_budget_reverse_f3_task0.log
+
+# 注意：--eval-tasks 值以 - 開頭必須用 = 形式（--eval-tasks="-1,0"），否則 argparse 報錯。
 
 每條跑完 ls 確認 json 非空；任一失敗就停。抓 router/random/prototype/semantic 各 K 的 ACC 貼我。更新 PROGRESS.md。
 ```

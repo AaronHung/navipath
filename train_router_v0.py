@@ -171,6 +171,9 @@ def main():
     ap.add_argument("--tasks", type=int, default=0, help="0=跑所有任務；>0=前 N 個")
     ap.add_argument("--task-to-eval", type=int, default=-1,
                     help="go/no-go 評估哪個任務（-1=最後學完的任務）")
+    ap.add_argument("--eval-tasks", default="",
+                    help="逗號分隔要評估的 task index（如 \"-1,0\"）；空=用 --task-to-eval。"
+                         "最後一個任務 -> router_v0_*.json；其餘 -> oldtask_budget_*.json")
     ap.add_argument("--lr", type=float, default=5e-4)
     ap.add_argument("--max-train", type=int, default=0)
     ap.add_argument("--max-eval", type=int, default=0)
@@ -213,23 +216,45 @@ def main():
                               device, t, args.epochs, args.top_k,
                               args.lr, args.max_train)
 
-    # go/no-go 評估（最後一個任務的 test set，或指定）
-    eval_t = args.task_to_eval % len(order)
-    eval_ds = order[eval_t]
-    print(f"\n[M4] go/no-go eval on {eval_ds} test set", flush=True)
-    results = eval_router_vs_heuristics(
-        router, backbone, loaders[eval_ds]["test"],
-        device, eval_t, budgets, args.max_eval)
-    go = print_table(results, budgets)
+    # 解析要評估的 task 清單（--eval-tasks 優先，否則用單一 --task-to-eval）
+    if args.eval_tasks.strip():
+        eval_list = [int(x) for x in args.eval_tasks.split(",")]
+    else:
+        eval_list = [args.task_to_eval]
 
-    # 存 router checkpoint + json
     os.makedirs(args.out, exist_ok=True)
-    torch.save(router.state_dict(),
-               os.path.join(args.out, f"router_v0_{args.order}_fold{args.fold}.pt"))
-    with open(os.path.join(args.out, f"router_v0_{args.order}_fold{args.fold}.json"), "w") as f:
-        json.dump({"order": args.order, "fold": args.fold, "eval_task": eval_ds,
-                   "budgets": list(budgets), "results": results, "go": go}, f, indent=2)
-    print(f"[M4] saved outputs/router_v0_{args.order}_fold{args.fold}.{{pt,json}}")
+    last_pos = len(order) - 1
+
+    # 存 router checkpoint（防覆蓋：canonical 已存在就不動）
+    ckpt_path = os.path.join(args.out, f"router_v0_{args.order}_fold{args.fold}.pt")
+    if os.path.exists(ckpt_path):
+        print(f"[skip] exists: {ckpt_path}")
+    else:
+        torch.save(router.state_dict(), ckpt_path)
+        print(f"[M4] saved {ckpt_path}")
+
+    # 逐一評估指定的 task；最後一任務寫 canonical router_v0，其餘寫 oldtask_budget
+    for et in eval_list:
+        eval_t = et % len(order)
+        eval_ds = order[eval_t]
+        if eval_t == last_pos:
+            json_path = os.path.join(args.out, f"router_v0_{args.order}_fold{args.fold}.json")
+        else:
+            json_path = os.path.join(
+                args.out, f"oldtask_budget_{args.order}_f{args.fold}_task{eval_t}.json")
+        if os.path.exists(json_path):
+            print(f"[skip] exists: {json_path}")
+            continue
+        print(f"\n[M4] eval on {eval_ds} test set (task_index={eval_t})", flush=True)
+        results = eval_router_vs_heuristics(
+            router, backbone, loaders[eval_ds]["test"],
+            device, eval_t, budgets, args.max_eval)
+        go = print_table(results, budgets)
+        with open(json_path, "w") as f:
+            json.dump({"order": args.order, "fold": args.fold, "eval_task": eval_ds,
+                       "task_index": eval_t, "budgets": list(budgets),
+                       "results": results, "go": go}, f, indent=2)
+        print(f"[M4] saved {json_path}")
 
 
 if __name__ == "__main__":

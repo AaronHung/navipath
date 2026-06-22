@@ -1,11 +1,14 @@
 QPMIL-VL/
-outputs/
 .env
 __pycache__/
 *.pyc
 checkpoints/
 *.bin
-*.pt
-*.pth
 .DS_Store
 data
+# results live in outputs/ (tracked). small .pt (<=5MB) kept in git;
+# the only large weights are CONCH at checkpoints/*.bin (still ignored above).
+outputs/_smoke/
+# outputs_history/ keeps report evidence (json/log/png, already tracked) but NOT
+# the redundant .pt duplicates of canonical weights that live in outputs/.
+outputs_history/**/*.pt
