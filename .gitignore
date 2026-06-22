@@ -12,3 +12,7 @@ outputs/_smoke/
 # outputs_history/ keeps report evidence (json/log/png, already tracked) but NOT
 # the redundant .pt duplicates of canonical weights that live in outputs/.
 outputs_history/**/*.pt
+# session_archive/ holds local Cursor chat transcripts (private, large) — ignored.
+# The README in there IS tracked so the backup/restore guide lives in git.
+session_archive/*.jsonl
+session_archive/*.zip
