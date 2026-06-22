@@ -88,6 +88,23 @@ python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold3.pt --order
 
 跑完 13/13：baseline 6 + router 6 + oldtask 3（注意 router 第 6 格 = reverse f1 由 (1) 產生）。
 
-## TASK 3 — RunPod：彙整結果  [未開始]
+## TASK 3 — 彙整結果  [工具就緒，待 TASK 2 完成後跑]
+
+時間：2026-06-22（Mac 端先把工具寫好，各開各的工）
+
+### 工具：`tools/collect_results.py`
+- 純 stdlib（無外部相依），掃 `outputs/*.json` 自動分類聚合（跨 fold mean±std）。
+- 認得的檔名：`qpmil_* / navipath_full_* / navipath_micro_*`（ACC/Forgetting/BWT）、
+  `router_v0_*`（last-task budget GO/NO-GO）、`oldtask_budget_*`（舊任務生死表）、`routing_drift_*`。
+- 產出三張 Markdown 表 + 可選 CSV；缺資料的區塊顯示 `(no data found)` 不會壞。
+- 已用現有 21 個 JSON 實測通過 ✅（oldtask 區塊現為空，待 TASK 2 產出後自動填）。
+
+跑法（TASK 2 的 3 條 oldtask 補完後執行）：
+```bash
+cd /workspace/src/navipath
+python tools/collect_results.py --outputs outputs -o outputs/RESULTS_SUMMARY.md --csv outputs/csv
+```
+- `RESULTS_SUMMARY.md`：論文用三表（人看）。
+- `outputs/csv/{accuracy,router_budget,oldtask_budget}.csv`：畫圖/貼表用。
 
 ## TASK 4 — RunPod：結果推回 GitHub  [未開始]
