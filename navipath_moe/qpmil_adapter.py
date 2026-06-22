@@ -147,12 +147,26 @@ def build_backbone_fresh(qpmil_cfg, order, device, seed=0):
     return QPMILBackbone(model, qpmil_cfg, device)
 
 
-def build_backbone_from_ckpt(ckpt_path, device):
-    """從 M1 runner 存的 checkpoint 載入訓練後的 backbone（全任務 seen）。"""
+def build_backbone_from_ckpt(ckpt_path, device, conch_ckpt_path=None,
+                             path_remap=None):
+    """從 M1 runner 存的 checkpoint 載入訓練後的 backbone（全任務 seen）。
+
+    conch_ckpt_path: 可覆蓋 ckpt 內嵌的 CONCH 權重路徑。
+    path_remap: (old_prefix, new_prefix) 跨機器移植用——把 qcfg 內所有以
+        old_prefix 開頭的絕對路徑（如 RunPod 的 /workspace/src/navipath）
+        改寫成本機 new_prefix。conch_ckpt_path 若提供則優先。
+    """
     ckpt = torch.load(ckpt_path, map_location=device)
     qcfg = ckpt["qpmil_cfg"]
     # 舊版 ckpt 可能缺 opt_name，補上 default
     qcfg.setdefault("opt_name", "adam")
+    if path_remap:
+        old_p, new_p = path_remap
+        for k, v in list(qcfg.items()):
+            if isinstance(v, str) and v.startswith(old_p):
+                qcfg[k] = new_p + v[len(old_p):]
+    if conch_ckpt_path:
+        qcfg["conch_ckpt_path"] = conch_ckpt_path
     order = ckpt["tasks"]
     base_model, _, _ = load_base_model(qcfg, device)
     dtype = base_model.dtype

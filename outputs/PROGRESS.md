@@ -107,4 +107,22 @@ python tools/collect_results.py --outputs outputs -o outputs/RESULTS_SUMMARY.md 
 - `RESULTS_SUMMARY.md`：論文用三表（人看）。
 - `outputs/csv/{accuracy,router_budget,oldtask_budget}.csv`：畫圖/貼表用。
 
+### 繪圖：`tools/plot_results.py`（論文圖，Mac 已驗證）
+- **P0** patch-budget 曲線（router vs random/prototype/semantic，逐 order/task，含 fold std error bar + All-patch 參考線）→ `P0_router_v0.*`、`P0_oldtask_budget.*`。
+- **P1** R-matrix heatmap（QPMIL vs NaviPath × paper/reverse，跨 fold 平均）→ `P1_r_matrix.*`。
+  - 重要敘事：NaviPath 每個 column 完全持平（= F=0 是 decouple 恆等式）；QPMIL baseline 有微幅變動。這張就是誠實面對 reviewer 的圖。
+- **P2-lite**（質化，需 model stack）feature-space t-SNE，色=router score，紅圈=top-K 選中 → `P2lite_{order}_fold{f}.*`。
+  - 跨機器移植：`build_backbone_from_ckpt` 新增 `path_remap`，自動把 ckpt 內嵌的 `/workspace/src/navipath` 改寫成本機 repo root（RunPod 存的 ckpt 在 Mac 也能跑）。
+- P0/P1 純讀 JSON、無 torch，一定能跑；P2-lite 缺 model/ckpt 會自動 `[skip]` 不報錯。
+- Mac 已實測三張圖皆正常產出（demo 圖未進 git；由 RunPod 跑權威版）。
+
+跑法（TASK 3 之後，oldtask 已補齊）：
+```bash
+cd /workspace/src/navipath
+# 必出圖（P0+P1）
+python tools/plot_results.py --outputs outputs --figdir outputs/figs
+# 加質化圖 P2-lite（paper/fold1，自動挑一張 esca slide）
+python tools/plot_results.py --outputs outputs --figdir outputs/figs --p2 --p2-order paper --p2-fold 1
+```
+
 ## TASK 4 — RunPod：結果推回 GitHub  [未開始]
