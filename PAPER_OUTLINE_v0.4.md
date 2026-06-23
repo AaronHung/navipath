@@ -101,13 +101,16 @@ Holds for both lung and esca.
 - Q：是不是 backbone 壞了？→ @All 四法相同（只有「選擇」這一步不同），且 R-matrix（Fig 4）顯示 backbone 不變。
 - Q：只差 recency 怎麼確定是因果？→ 同一任務、同資料、同 router，**只改它在序列中的新舊**，結果翻轉 = 乾淨單變因。
 
-### Fig 3 — `P2lite_*.png`（機制：router score 特徵空間）
-**Caption**：Router importance scores over one slide's patches in CONCH feature space (t-SNE).
-When the task is recent, top-scored (selected) patches concentrate in a discriminative
-sub-region; [TODO 對照圖] when the task is old, scores degenerate/invert, explaining why the
-router picks worse-than-random patches.
-**Defend**：提供 mechanistic 解釋，非黑盒。
-**TODO（我下一步可補）**：生成「舊任務版」P2-lite（用 reverse router 對 esca slide 打分）做 recent↔old 對照。
+### Fig 3 — `P2contrast_esca_fold1.png`（機制：recent vs forgotten router，同一切片）
+**Caption**：The *same* esca slide in CONCH feature space (shared t-SNE), scored by the router
+when esca was **recent** (paper, left) vs when esca was **old/overwritten** (reverse, right).
+Both routers produce structured scores, but they prioritise **different patch sub-populations**:
+the forgotten router's top-64 shifts to a region made salient by *later* tasks, which is
+sub-optimal for esca. This mis-prioritisation (not noise) explains why router@64 falls **below**
+random on old tasks.
+**Defend**：
+- Q：舊 router 的分數不是退化成雜訊嗎？→ 不是。圖顯示它仍有結構，但**把重要性押在錯的 patch 群**（被後續任務調教過的）→ 這正是「router@64 < random」（自信選錯）而非「= random」（無訊號）的原因。
+- Q：只看一張切片代表性？→ 作為 illustrative 機制圖（如 QPMIL Fig 5 亦用示例切片）；量化結論由 Table 2 / Fig 2（6/6 fold）承擔。
 
 ### Fig 4 — `P1_r_matrix.png`（backbone decouple → F=0 恆等）
 **Caption**：Per-task accuracy R[i,j] (acc on task j after learning task i). NaviPath columns are

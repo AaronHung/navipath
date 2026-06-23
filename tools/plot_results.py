@@ -310,6 +310,114 @@ def plot_p2_lite(figdir, repo_root, data_root, order, fold, feat_file, topk):
         traceback.print_exc()
 
 
+def plot_p2_contrast(figdir, repo_root, data_root, fold, slide_ds, topk):
+    """Mechanism contrast (Fig 3): the SAME slide scored by the router that learned
+    `slide_ds` RECENTLY vs the router that learned it long ago (OLD). One shared
+    t-SNE; two colorings + top-K. Shows old-router scores degenerate -> mis-select.
+    `slide_ds` must be a task that is LAST in one order and FIRST in the other
+    (e.g. tcga_esca: paper-last=recent, reverse-first=old)."""
+    try:
+        sys.path.insert(0, repo_root)
+        import glob
+        import torch
+        from navipath_moe import MicroRouterV0, top_k_select, get_device, setup_mps
+        from navipath_moe.qpmil_adapter import build_backbone_from_ckpt
+        from train_qpmil_runner import TASK_ORDERS
+        from sklearn.manifold import TSNE
+    except Exception as e:  # noqa: BLE001
+        print(f"[P2-contrast] skipped (import failed: {e})")
+        return
+
+    # which order has slide_ds last (recent) vs first (old)?
+    recent_order = old_order = None
+    for o, seq in TASK_ORDERS.items():
+        if seq[-1] == slide_ds:
+            recent_order = o
+        if seq[0] == slide_ds:
+            old_order = o
+    if recent_order is None or old_order is None:
+        print(f"[P2-contrast] {slide_ds} is not both last & first across orders — skip")
+        return
+
+    try:
+        setup_mps()
+        device = get_device("auto")
+        cand = sorted(glob.glob(os.path.join(
+            data_root, slide_ds, "feats-l1-s256_CONCH", "pt_files", "*.pt")))
+        if not cand:
+            print(f"[P2-contrast] no slide under {data_root}/{slide_ds} — skip")
+            return
+        feat_file = cand[0]
+        feats = torch.load(feat_file, map_location="cpu")
+        if isinstance(feats, dict):
+            feats = feats.get("features", next(iter(feats.values())))
+
+        def score_with(order):
+            bb = os.path.join(repo_root, "outputs", f"qpmil_{order}_fold{fold}.pt")
+            rt = os.path.join(repo_root, "outputs", f"router_v0_{order}_fold{fold}.pt")
+            if not (os.path.exists(bb) and os.path.exists(rt)):
+                raise FileNotFoundError(f"missing ckpt for order={order}")
+            backbone = build_backbone_from_ckpt(
+                bb, device, path_remap=("/workspace/src/navipath", repo_root))
+            for p in backbone.parameters():
+                p.requires_grad_(False)
+            router = MicroRouterV0(feat_dim=512, hidden=256).to(device)
+            router.load_state_dict(torch.load(rt, map_location=device))
+            router.eval()
+            with torch.no_grad():
+                Z = backbone.encode_patches(feats).to(device)
+                s, _ = router(Z, backbone.class_text_features().to(device),
+                              backbone.prototype_features().to(device))
+            return Z.detach().float().cpu().numpy(), s.detach().float().view(-1).cpu().numpy()
+
+        print(f"[P2-contrast] slide={os.path.basename(feat_file)} "
+              f"recent={recent_order} old={old_order}")
+        Znp, s_recent = score_with(recent_order)
+        _, s_old = score_with(old_order)
+        n = Znp.shape[0]
+        k = min(topk, n)
+
+        rng = np.random.default_rng(0)
+        sel_r = set(top_k_select(torch.from_numpy(s_recent), k).tolist())
+        sel_o = set(top_k_select(torch.from_numpy(s_old), k).tolist())
+        cap = 3000
+        if n > cap:
+            keep = set(sel_r) | set(sel_o)
+            extra = [i for i in range(n) if i not in keep]
+            keep |= set(rng.choice(extra, size=cap - len(keep), replace=False).tolist())
+            idx = np.array(sorted(keep))
+        else:
+            idx = np.arange(n)
+        emb = TSNE(n_components=2, init="pca", perplexity=min(30, len(idx) - 1),
+                   random_state=0).fit_transform(Znp[idx])
+
+        # shared color scale (z-score each panel for comparability of structure)
+        fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.0))
+        tag = slide_ds.replace("tcga_", "")
+        for ax, s_all, sel, title in [
+            (axes[0], s_recent, sel_r, f"{tag} as RECENT (order={recent_order}): GO"),
+            (axes[1], s_old, sel_o, f"{tag} as OLD (order={old_order}): forgotten")]:
+            s_sub = s_all[idx]
+            is_sel = np.array([i in sel for i in idx])
+            sc = ax.scatter(emb[~is_sel, 0], emb[~is_sel, 1], c=s_sub[~is_sel],
+                            cmap="viridis", s=10, alpha=0.6)
+            ax.scatter(emb[is_sel, 0], emb[is_sel, 1], facecolors="none",
+                       edgecolors="red", s=42, linewidths=1.2,
+                       label=f"router top-{k}")
+            fig.colorbar(sc, ax=ax, label="router score", fraction=0.046, pad=0.04)
+            ax.set_title(title, fontsize=10)
+            ax.set_xlabel("t-SNE 1"); ax.set_ylabel("t-SNE 2")
+            ax.legend(fontsize=8, loc="best"); ax.grid(True, alpha=0.2)
+        fig.suptitle(f"P2 mechanism: same {tag} slide, recent vs forgotten router "
+                     f"(slide {os.path.basename(feat_file)[:16]}…, n={n})", fontsize=12)
+        fig.tight_layout(rect=(0, 0, 1, 0.95))
+        _savefig(fig, figdir, f"P2contrast_{tag}_fold{fold}")
+    except Exception as e:  # noqa: BLE001
+        import traceback
+        print(f"[P2-contrast] skipped (runtime error: {e})")
+        traceback.print_exc()
+
+
 # ----------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
@@ -321,6 +429,10 @@ def main():
     ap.add_argument("--p2-fold", type=int, default=1)
     ap.add_argument("--p2-feat", default="", help="explicit slide .pt; default auto-pick")
     ap.add_argument("--p2-topk", type=int, default=64)
+    ap.add_argument("--p2-contrast", action="store_true",
+                    help="Fig 3: same slide scored by recent vs forgotten router")
+    ap.add_argument("--p2-contrast-task", default="tcga_esca",
+                    help="task that is last in one order & first in the other")
     ap.add_argument("--data-root", default="/Users/aaron/research/can_dataset")
     args = ap.parse_args()
 
@@ -340,11 +452,15 @@ def main():
     plot_recent_vs_old(records, args.figdir)
     # P1
     plot_r_matrix(records, args.figdir)
-    # P2-lite (optional)
-    if args.p2:
+    # P2-lite / P2-contrast (optional, need model stack)
+    if args.p2 or args.p2_contrast:
         repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        plot_p2_lite(args.figdir, repo_root, args.data_root,
-                     args.p2_order, args.p2_fold, args.p2_feat, args.p2_topk)
+        if args.p2:
+            plot_p2_lite(args.figdir, repo_root, args.data_root,
+                         args.p2_order, args.p2_fold, args.p2_feat, args.p2_topk)
+        if args.p2_contrast:
+            plot_p2_contrast(args.figdir, repo_root, args.data_root,
+                             args.p2_fold, args.p2_contrast_task, args.p2_topk)
 
     print(f"[done] figures in {args.figdir}/")
 
