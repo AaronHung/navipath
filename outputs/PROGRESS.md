@@ -138,6 +138,9 @@ TASK 2 reverse f1 跑出 oldtask_budget（esca，最舊任務）= **NO-GO 且崩
 
 **2026-06-23 更新：reverse f1/f2/f3 全部 pull 完成，三 fold 全崩 GO=0/3**（esca router@64
 mean=0.333，輸 random 0.822 / prototype 0.778 / semantic 0.778）。複現確認，效應強。
-待補：paper order oldtask（最舊=lung，`--eval-tasks="0"`）排除 esca 樣本少/難的混淆。
+
+**2026-06-23 對照完成：paper oldtask（最舊=lung，樣本多）三 fold 也全崩**（router@64
+mean=0.397，GO 0/3）→ **混淆排除，崩因是 recency 非樣本少**。總計舊任務 6/6 NO-GO、
+近期任務 6/6 GO，且 lung/esca 都有「最近→GO、最舊→崩」翻轉。發現坐實。下一步：出圖/寫稿 或 Plan B。
 
 ## TASK 4 — RunPod：結果推回 GitHub  [未開始]

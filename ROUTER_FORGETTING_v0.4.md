@@ -13,7 +13,8 @@
 - **決議**：(a) 不中斷，讓 reverse f2/f3 跑完確認複現；(b) 先寫本設計草稿備用；
   (c) 敘事在三 fold 確認後二選一（§3）：**A 誠實分析稿（預設）** / **B 加 router consolidation 救**。
 - **2026-06-23 06:xx** — reverse f2/f3 跑完並 pull。**三 fold 全崩，GO=0/3**：esca router@64 三 fold mean=0.333（f1 0.133 / f2 ~0.40 / f3 0.467），輸給 random 0.822、prototype 0.778、semantic 0.778（Δ@64=−0.489）。**R-1 複現風險解除：router forgetting 為穩定強效應。**
-- **待補資料**：paper order 的 oldtask（最舊=lung，尚未跑，見 §5）——用來排除「esca 樣本少/難」混淆（R-2/R-3）。
+- **2026-06-23 20:xx** — paper oldtask（最舊=lung，test ~95 張，樣本多）跑完三 fold：**GO=0/3，router@64 mean=0.397**（vs random 0.783、semantic 0.813；Δ@64=−0.417）。**lung 樣本充足仍崩 → R-2/R-3 混淆排除：崩的共因是 recency，不是 esca 樣本少/難。**
+- **結論定案**：兩個 order × 兩個最舊任務（lung/esca）× 三 fold = **6/6 全 NO-GO**；近期任務 6/6 全 GO。且 lung 與 esca 都出現「最近→GO、最舊→崩」的翻轉，互為對照。發現坐實，可進寫稿。
 
 ---
 
@@ -152,8 +153,8 @@
 ## 7. 風險 / 待確認
 
 - **R-1 複現性**：esca 崩是否在 reverse f2/f3 一致？（跑中）若 f1 為離群，重評。
-- **R-2 對稱性**：paper 最舊（lung）是否也崩？需補 paper oldtask（§5）。若 lung 不崩、esca 才崩，需區分「recency」與「任務難度/樣本數」混淆因子（esca test 僅 15 張，樣本小、方差大——務必三 fold 平均並標 error bar）。
-- **R-3 小樣本**：esca test=15 張，單 fold 數字雜訊大；所有結論以三 fold mean±std 為準。
+- ~~**R-2 對稱性**~~ **已解除（2026-06-23）**：paper 最舊 lung（test ~95 張）三 fold 也全崩（router@64=0.397，GO 0/3）→ recency 是主因，非任務/樣本數混淆。
+- ~~**R-3 小樣本**~~ **已緩解**：lung 樣本充足仍崩，結論不依賴 esca 小樣本；報告仍一律用三 fold mean±std + error bar。
 - **R-4 B 不保證成功**：EWC 可能只部分恢復；per-task 一定成功但只是上界。時間不足就走敘事 A。
 
 ---
