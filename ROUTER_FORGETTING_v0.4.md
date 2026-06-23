@@ -103,11 +103,21 @@
 ### B5（備選）Momentum / EMA consolidation
 - 對 router 權重做 EMA（慢速更新），減緩覆寫。最簡單但效果通常最弱，列為對照。
 
-### 預計的 code 介面（**尚未動**，實作時才加）
-- `train_router_v0.py` 新增：`--router-consol {none,ewc,perTask,freeze,ema}`、`--consol-lam <float>`。
-- 產出檔名建議加後綴以免覆蓋：`router_v0_{order}_fold{f}__{consol}.json`、`oldtask_budget_{order}_f{f}_task{t}__{consol}.json`。
-- 防覆蓋機制沿用現狀（存在即 skip）。
-- `none` = 現行行為（baseline，已跑）。
+### code 介面（**已實作於 `train_router_v0.py`，2026-06-23**）
+- `--router-consol {none,ewc,pertask}`（預設 none＝現行行為，不影響既有結果）、`--consol-lam <float>`（EWC λ，預設 1000）。
+- `ewc`：`RouterEWC` 類別，學完每任務估 diagonal Fisher + 最優解，新任務 loss 加 `λ·ΣF·(θ-θ*)²`。
+- `pertask`：每任務存一份 router state，eval 任務 t 時載回「剛學完 t」的 router（上界）。
+- 產出自動加後綴防覆蓋：`router_v0_{order}_fold{f}__{consol}.json`、`oldtask_budget_{order}_f{f}_task{t}__{consol}.json`；JSON 內多存 `consol` 欄位。
+- lint/syntax/argparse 已驗證；**尚未在 GPU 實跑**（待 RunPod）。
+
+### RunPod 跑法（出 Plan B 結果）
+```bash
+# 上界：per-task router（reverse，eval 最舊 esca + 最新 lung）
+python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold1.pt --order reverse --fold 1 --eval-tasks="-1,0" --epochs 5 --router-consol pertask 2>&1 | tee outputs/router_pertask_reverse_f1.log
+# 真修法：EWC-on-router（掃 λ）
+python train_router_v0.py --backbone-ckpt outputs/qpmil_reverse_fold1.pt --order reverse --fold 1 --eval-tasks="-1,0" --epochs 5 --router-consol ewc --consol-lam 1000 2>&1 | tee outputs/router_ewc_reverse_f1.log
+```
+成功判準：舊任務（esca/lung）`router@64` 由 ~0.33–0.40 回到 **≥ random**（pertask 應接近 recent 的 GO 水準；ewc 至少部分恢復）。
 
 ---
 

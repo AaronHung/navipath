@@ -19,6 +19,7 @@ go/no-go 判準（任一綠燈）：
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import sys
@@ -48,7 +49,7 @@ def iter_slides(loader, shift, limit=0):
 # ── training ──────────────────────────────────────────────────────────────────
 
 def train_router_one_task(router, backbone, loader, device, task_pos,
-                          epochs, top_k, lr, max_train):
+                          epochs, top_k, lr, max_train, ewc=None):
     """凍結 backbone，只訓練 router。
 
     梯度路徑：router 輸出 score[n] → softmax → soft weight Z_w（differentiable
@@ -83,11 +84,64 @@ def train_router_one_task(router, backbone, loader, device, task_pos,
 
             gt = torch.tensor([label], device=device)
             loss = F.cross_entropy(logits, gt)
+            if ewc is not None and ewc.fishers:          # Plan B: EWC penalty
+                loss = loss + ewc.penalty(router)
             opt.zero_grad(); loss.backward(); opt.step()
             total_loss += loss.item(); seen += 1
         avg = total_loss / max(seen, 1)
         print(f"    [router task_pos {task_pos}] epoch {epoch+1}/{epochs}"
               f"  loss={avg:.4f}  slides={seen}", flush=True)
+
+
+# ── Plan B: router consolidation (EWC-on-router) ───────────────────────────────
+
+class RouterEWC:
+    """EWC over the router's ~132K params (replay-free). 學完每個任務後估 diagonal
+    Fisher 與當時最優解；之後新任務的 loss 加 λ·Σ F·(θ-θ*)²，保護舊任務重要權重。"""
+
+    def __init__(self, lam: float = 1000.0):
+        self.lam = lam
+        self.fishers = []   # list of (fisher dict, opt-param dict)
+
+    def consolidate(self, router, backbone, loader, device, task_pos,
+                    top_k, max_train):
+        fisher = {n: torch.zeros_like(p) for n, p in router.named_parameters()}
+        opt = {n: p.detach().clone() for n, p in router.named_parameters()}
+        shift = 2 * task_pos
+        f_txt = backbone.class_text_features().to(device).detach()
+        router.eval()
+        seen = 0
+        for feats, label in iter_slides(loader, shift, max_train):
+            Z = backbone.encode_patches(feats).to(device)
+            F_p = backbone.prototype_features().to(device).detach()
+            score, _ = router(Z, f_txt, F_p)
+            n = Z.shape[0]
+            k = min(top_k, n) if top_k > 0 else n
+            topk_score, topk_idx = torch.topk(score, k)
+            w = F.softmax(topk_score, dim=0).unsqueeze(-1)
+            Z_w = F.normalize((w * Z[topk_idx].detach()).sum(0, keepdim=True), dim=-1)
+            logit_scale = backbone.model.logit_scale.exp().detach()
+            logits = logit_scale * (Z_w @ f_txt.t())
+            loss = F.cross_entropy(logits, torch.tensor([label], device=device))
+            router.zero_grad()
+            loss.backward()
+            for nm, p in router.named_parameters():
+                if p.grad is not None:
+                    fisher[nm] += p.grad.detach() ** 2
+            seen += 1
+        for nm in fisher:
+            fisher[nm] /= max(seen, 1)
+        self.fishers.append((fisher, opt))
+        print(f"    [EWC] consolidated task_pos {task_pos} (Fisher over {seen} slides)",
+              flush=True)
+
+    def penalty(self, router):
+        loss = 0.0
+        params = dict(router.named_parameters())
+        for fisher, opt in self.fishers:
+            for nm, f in fisher.items():
+                loss = loss + (f * (params[nm] - opt[nm]) ** 2).sum()
+        return self.lam * loss
 
 
 # ── evaluation ────────────────────────────────────────────────────────────────
@@ -175,6 +229,10 @@ def main():
                     help="逗號分隔要評估的 task index（如 \"-1,0\"）；空=用 --task-to-eval。"
                          "最後一個任務 -> router_v0_*.json；其餘 -> oldtask_budget_*.json")
     ap.add_argument("--lr", type=float, default=5e-4)
+    ap.add_argument("--router-consol", choices=["none", "ewc", "pertask"], default="none",
+                    help="Plan B：none=現行；ewc=EWC-on-router(replay-free 真修法)；"
+                         "pertask=每任務存一個 router(上界，證明訊號還在/是遺忘)")
+    ap.add_argument("--consol-lam", type=float, default=1000.0, help="EWC 正規化強度 λ")
     ap.add_argument("--max-train", type=int, default=0)
     ap.add_argument("--max-eval", type=int, default=0)
     ap.add_argument("--out", default="outputs")
@@ -209,12 +267,25 @@ def main():
 
     loaders = build_loaders(cfg, order, args.fold)
 
+    # Plan B 設定（預設 none = 原行為）
+    ewc = RouterEWC(args.consol_lam) if args.router_consol == "ewc" else None
+    router_states = {} if args.router_consol == "pertask" else None
+    suffix = "" if args.router_consol == "none" else f"__{args.router_consol}"
+    if args.router_consol != "none":
+        print(f"[M4] Plan B router-consol = {args.router_consol}"
+              f"{f' (λ={args.consol_lam})' if ewc else ''}", flush=True)
+
     # 逐任務訓練 router（continual，backbone 不動）
     for t, ds in enumerate(order):
         print(f"\n[M4] task {t+1}/{len(order)} {ds}", flush=True)
         train_router_one_task(router, backbone, loaders[ds]["train"],
                               device, t, args.epochs, args.top_k,
-                              args.lr, args.max_train)
+                              args.lr, args.max_train, ewc=ewc)
+        if ewc is not None:                              # EWC：學完即固化 Fisher
+            ewc.consolidate(router, backbone, loaders[ds]["train"],
+                            device, t, args.top_k, args.max_train)
+        if router_states is not None:                   # per-task：存當下 router
+            router_states[t] = copy.deepcopy(router.state_dict())
 
     # 解析要評估的 task 清單（--eval-tasks 優先，否則用單一 --task-to-eval）
     if args.eval_tasks.strip():
@@ -226,7 +297,7 @@ def main():
     last_pos = len(order) - 1
 
     # 存 router checkpoint（防覆蓋：canonical 已存在就不動）
-    ckpt_path = os.path.join(args.out, f"router_v0_{args.order}_fold{args.fold}.pt")
+    ckpt_path = os.path.join(args.out, f"router_v0_{args.order}_fold{args.fold}{suffix}.pt")
     if os.path.exists(ckpt_path):
         print(f"[skip] exists: {ckpt_path}")
     else:
@@ -238,13 +309,16 @@ def main():
         eval_t = et % len(order)
         eval_ds = order[eval_t]
         if eval_t == last_pos:
-            json_path = os.path.join(args.out, f"router_v0_{args.order}_fold{args.fold}.json")
+            json_path = os.path.join(args.out, f"router_v0_{args.order}_fold{args.fold}{suffix}.json")
         else:
             json_path = os.path.join(
-                args.out, f"oldtask_budget_{args.order}_f{args.fold}_task{eval_t}.json")
+                args.out, f"oldtask_budget_{args.order}_f{args.fold}_task{eval_t}{suffix}.json")
         if os.path.exists(json_path):
             print(f"[skip] exists: {json_path}")
             continue
+        # per-task router：評估某任務時，載回「剛學完該任務」的 router（不被後續覆寫）
+        if router_states is not None:
+            router.load_state_dict(router_states[eval_t])
         print(f"\n[M4] eval on {eval_ds} test set (task_index={eval_t})", flush=True)
         results = eval_router_vs_heuristics(
             router, backbone, loaders[eval_ds]["test"],
@@ -252,7 +326,8 @@ def main():
         go = print_table(results, budgets)
         with open(json_path, "w") as f:
             json.dump({"order": args.order, "fold": args.fold, "eval_task": eval_ds,
-                       "task_index": eval_t, "budgets": list(budgets),
+                       "task_index": eval_t, "consol": args.router_consol,
+                       "budgets": list(budgets),
                        "results": results, "go": go}, f, indent=2)
         print(f"[M4] saved {json_path}")
 
