@@ -76,5 +76,73 @@
 
 ---
 
-## 待我補：每張圖 caption + defend 講稿（下一步寫，放本檔 §附錄或獨立檔）
 ## 待你給：Plan B（pertask/ewc）結果 → 填 §4.5 + Table 2 + Abstract Plan B 句
+
+---
+
+# 附錄 A：Figure captions + defend 講稿
+
+### Fig 1 — `P0_router_v0.png`（近期任務 budget 曲線）
+**Caption**：Patch-budget accuracy on the **most-recently-learned** task. The learned router
+(red) matches/exceeds random, prototype, semantic across budgets; at K=64 it gives **+2.5–6.7 pp**
+over the best heuristic (3/3 folds, both orders). Using only 64 of thousands of patches, the
+router nearly matches all-patch accuracy.
+**Defend**：
+- Q：router 只是跟 random 打平？→ 在 tight budget（64/32）router 明顯在上，random 掉下去；@All 大家一樣（無選擇）。
+- Q：cherry-pick？→ paper-esca、reverse-lung，各 3 folds，**6/6 GO**。
+
+### Fig 2 — `P0b_recency_flip.png`（**核心**：same-task recency flip）
+**Caption**：**Same-task recency flip.** For the *identical* task and test set, the router selects
+well when the task was learned **last** (solid, ~0.9) but **collapses below the random baseline**
+when the *same* task was learned **first** and then overwritten by later tasks (dashed, 0.33–0.40).
+Holds for both lung and esca.
+**Defend**：
+- Q：esca 是不是太難/太小才崩？→ **lung（test ~95 張，樣本多）同樣翻轉**，排除樣本數/難度。
+- Q：是不是 backbone 壞了？→ @All 四法相同（只有「選擇」這一步不同），且 R-matrix（Fig 4）顯示 backbone 不變。
+- Q：只差 recency 怎麼確定是因果？→ 同一任務、同資料、同 router，**只改它在序列中的新舊**，結果翻轉 = 乾淨單變因。
+
+### Fig 3 — `P2lite_*.png`（機制：router score 特徵空間）
+**Caption**：Router importance scores over one slide's patches in CONCH feature space (t-SNE).
+When the task is recent, top-scored (selected) patches concentrate in a discriminative
+sub-region; [TODO 對照圖] when the task is old, scores degenerate/invert, explaining why the
+router picks worse-than-random patches.
+**Defend**：提供 mechanistic 解釋，非黑盒。
+**TODO（我下一步可補）**：生成「舊任務版」P2-lite（用 reverse router 對 esca slide 打分）做 recent↔old 對照。
+
+### Fig 4 — `P1_r_matrix.png`（backbone decouple → F=0 恆等）
+**Caption**：Per-task accuracy R[i,j] (acc on task j after learning task i). NaviPath columns are
+**flat by construction** (decoupled frozen backbone → Forgetting=0 is an identity, *not* a
+contribution); the QPMIL baseline shows mild genuine drift. We surface this to transparently
+locate our contribution in the **selection** analysis, not in a trivial F=0.
+**Defend**：主動回答「為何剛好 0」，把它定位成恆等式，避免被當賣點質疑。
+
+---
+
+# 附錄 B：Tables
+
+## Table 1 — Continual accuracy (backbone level, mean±std, 3 folds)
+| Method | Order | ACC | Forgetting | BWT |
+|---|---|---|---|---|
+| QPMIL baseline | paper | 0.924±0.016 | 0.017±0.022 | −0.017±0.022 |
+| QPMIL baseline | reverse | 0.917±0.026 | 0.041±0.023 | −0.041±0.023 |
+| NaviPath (decoupled) | paper | 0.879±0.030 | 0.000 | 0.000 |
+| NaviPath (decoupled) | reverse | 0.886±0.030 | 0.000 | 0.000 |
+（註：NaviPath F=0 為 decouple 恆等，見 Fig 4；ACC 為 router-free 全 patch。）
+
+## Table 2 — Router patch selection: recent vs old (router@K, mean over 3 folds)
+> 「best heur」= max(random, prototype, semantic)。GO = router > best heur（finite budget）。
+> Plan B 兩欄待跑（pertask=上界、ewc=replay-free 修法）。
+
+| Task | Condition (recency) | @256 | @128 | @64 | @32 | best heur@64 | GO | **pertask@64** | **ewc@64** |
+|---|---|---|---|---|---|---|---|---|---|
+| esca | RECENT (paper, last) | 0.956 | 0.956 | **0.956** | 0.933 | 0.889 | ✓ | — | — |
+| esca | OLD (reverse, first) | 0.511 | 0.400 | **0.333** | 0.333 | 0.822 | ✗ | _[待填]_ | _[待填]_ |
+| lung | RECENT (reverse, last) | 0.904 | 0.915 | **0.922** | 0.918 | 0.897 | ✓ | — | — |
+| lung | OLD (paper, first) | 0.512 | 0.453 | **0.397** | 0.353 | 0.813 | ✗ | _[待填]_ | _[待填]_ |
+
+**讀法**：同任務 RECENT→OLD，router@64 由 0.92–0.96 崩到 0.33–0.40（且 < best heur）。
+Plan B 目標：OLD 列的 pertask@64 應回到 ≈ RECENT 水準（上界）；ewc@64 至少 ≥ best heur(~0.8)。
+
+## Table 2-supp — full budget curves（給 appendix，數字見 `collect_results.py` 輸出）
+- recent：paper-esca、reverse-lung（GO 3/3）。
+- old：reverse-esca、paper-lung（NO-GO 3/3，router < random 全 budget）。
