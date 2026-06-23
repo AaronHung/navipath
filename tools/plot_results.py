@@ -128,6 +128,57 @@ def _mean_R(records, method, order):
     return np.mean(Rs, axis=0), tasks
 
 
+def plot_recent_vs_old(records, figdir):
+    """Same-task recency flip: router@K when the task was learned LAST (recent,
+    from router_v0_*) vs FIRST then overwritten (old, from oldtask_budget_*).
+    The killer figure: only recency differs, yet router flips GO -> crash."""
+    from collections import defaultdict
+    recent = defaultdict(lambda: defaultdict(list))
+    old = defaultdict(lambda: defaultdict(list))
+    old_rand = defaultdict(lambda: defaultdict(list))
+    for r in records:
+        d = r["data"]; res = d.get("results")
+        if not res:
+            continue
+        task = d.get("eval_task", "?")
+        if r["kind"] == "router_v0":
+            for b, v in res.get("router", {}).items():
+                recent[task][b].append(v)
+        elif r["kind"] == "oldtask_budget":
+            for b, v in res.get("router", {}).items():
+                old[task][b].append(v)
+            for b, v in res.get("random", {}).items():
+                old_rand[task][b].append(v)
+    tasks = [t for t in recent if t in old]
+    if not tasks:
+        print("[flip] need both router_v0 and oldtask_budget for a task — skip")
+        return
+    ncol = len(tasks)
+    fig, axes = plt.subplots(1, ncol, figsize=(5.2 * ncol, 4.2), squeeze=False)
+    for i, task in enumerate(sorted(tasks)):
+        ax = axes[0][i]
+        bks = sorted({int(b) for b in recent[task] if b not in ("All", "0")}
+                     & {int(b) for b in old[task] if b not in ("All", "0")})
+        def curve(src):
+            return [cr.mean_std(src[task].get(str(b), []))[0] for b in bks]
+        ax.plot(bks, curve(recent), "-o", color="#d62728", lw=2.4,
+                label=f"router — {task.replace('tcga_','')} as RECENT (last learned)")
+        ax.plot(bks, curve(old), "--s", color="#d62728", lw=2.0, alpha=0.55,
+                label=f"router — {task.replace('tcga_','')} as OLD (learned first)")
+        ax.plot(bks, curve(old_rand), ":", color="#7f7f7f", lw=1.5,
+                label="random (no-skill baseline)")
+        ax.set_xscale("log", base=2); ax.set_xticks(bks)
+        ax.set_xticklabels([str(b) for b in bks])
+        ax.set_xlabel("patch budget (K)"); ax.set_ylabel("accuracy")
+        ax.set_ylim(0, 1)
+        ax.set_title(f"{task.replace('tcga_','')}: same task, recency flip", fontsize=10)
+        ax.grid(True, alpha=0.25); ax.legend(fontsize=7.5, loc="best")
+    fig.suptitle("Same-task recency flip: router selection is forgotten on old tasks",
+                 fontsize=12)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    _savefig(fig, figdir, "P0b_recency_flip")
+
+
 def plot_r_matrix(records, figdir):
     methods = [("qpmil", "QPMIL baseline"), ("navipath_full", "NaviPath (full)")]
     orders = ["paper", "reverse"]
@@ -284,7 +335,9 @@ def main():
     plot_budget(records, "router_v0", args.figdir,
                 "P0: Patch-budget on LAST task (router vs heuristics)")
     plot_budget(records, "oldtask_budget", args.figdir,
-                "P0: Patch-budget on OLD tasks (生死表)")
+                "P0: Patch-budget on OLD tasks (router forgetting)")
+    # P0b — same-task recency flip (the key defense figure)
+    plot_recent_vs_old(records, args.figdir)
     # P1
     plot_r_matrix(records, args.figdir)
     # P2-lite (optional)
