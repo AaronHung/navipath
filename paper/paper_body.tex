@@ -1,13 +1,26 @@
 % =====================================================================
-% NaviPath / "Selection Forgetting" -- COMPAYL (MICCAI workshop) v1.0
-% Self-contained LNCS document. Drop into Overleaf with:
-%   - references.bib   (provided)
-%   - figs/*.pdf       (copy from outputs/figs/)
-% If llncs.cls / splncs04.bst are unavailable, switch \documentclass to
-% {article} and the bibliography style to {plain} (see comments below).
+% NaviPath / "Selection Forgetting" -- COMPAYL @ MICCAI 2026  v1.0
+% =====================================================================
+% RECOMMENDED WORKFLOW (compliance-safe, see paper/OVERLEAF_SOP.md):
+%   1) Start FROM the official MICCAI 2026 / Springer LNCS Overleaf template.
+%      Do NOT change margins / spacing / fonts (desk-reject risk).
+%   2) Copy the [[PREAMBLE TO COPY]] block below into that template's preamble
+%      (these are package/macro ADDITIONS only -- allowed; they do not alter
+%      the template's layout).
+%   3) Copy everything between \begin{document} ... \end{document} (the [[BODY]])
+%      into the template, replacing its placeholder body. Keep the template's
+%      anonymized \author block and the "Disclosure of Interests" section.
+%   4) Upload references.bib and figs/*.pdf.
+% This file is ALSO self-contained: it compiles on its own for local preview.
+% (If llncs.cls/splncs04.bst are missing locally, temporarily switch to
+%  {article} + {plain} -- for preview only, never for submission.)
+% NOTE: COMPAYL/MICCAI 2026 supplementary = MULTIMEDIA ONLY (no PDF/text/
+%  analysis). So the fairness write-up is NOT submittable as supplementary;
+%  the matched-budget fairness point already lives positively in Sec. 4.1.
 % =====================================================================
 \documentclass[runningheads]{llncs}
 
+% ===================== [[PREAMBLE TO COPY]] ==========================
 \usepackage{graphicx}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
@@ -20,8 +33,9 @@
 \newcommand{\go}{\ensuremath{\checkmark}}
 \newcommand{\nogo}{\ensuremath{\times}}
 \newcommand{\K}{\ensuremath{K}}
+% =================== [[END PREAMBLE TO COPY]] ========================
 
-\begin{document}
+\begin{document}  % ===================== [[BODY START]] =====================
 
 \title{Selection Forgetting: Continual Patch Routing Forgets Old Tasks
 in Frozen-Foundation-Model Whole-Slide Image Classification}
@@ -589,8 +603,19 @@ learned selector front-ends a frozen predictor, and we release our code,
 configs, and figures to support follow-up work.
 
 % =====================================================================
+% Required by the latest Springer LNCS template. Keep this section.
+\begin{credits}
+\subsubsection{\ackname} (Optional; add funding/acknowledgements in the
+camera-ready, non-anonymous version.)
+
+\subsubsection{\discintname}
+The authors have no competing interests to declare that are relevant to the
+content of this article.
+\end{credits}
+
+% =====================================================================
 % Bibliography. For LNCS use splncs04; if unavailable switch to {plain}.
 \bibliographystyle{splncs04}
 \bibliography{references}
 
-\end{document}
+\end{document}  % ====================== [[BODY END]] =======================
