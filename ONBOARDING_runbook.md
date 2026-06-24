@@ -140,3 +140,44 @@ done; done
 - RunPod 重置 `ModuleNotFoundError` → 跑 §1 安裝。**不要** `pip install -r QPMIL-VL/requirements.txt`（含 conda 套件會失敗）。
 - git push 要帳密 → 用 GitHub **PAT** 當密碼。
 - 重跑前先確認 `.pt` 是否已存在（會 `[skip]` 只重評估）；要全重跑就先刪該 `.pt` 或改 `--out`。
+- **QPMIL-VL 已 vendored（收進 repo）**：clone 即有，不需另外 clone upstream。upstream 出處見 `QPMIL-VL`（commit 3a7a769, AAAI 2025）。
+- **⚠️ RunPod 第一次 pull 到含 QPMIL-VL 的版本會卡住**：RunPod 本來有一份 untracked 的 QPMIL-VL，git 不會覆蓋它，`git pull` 會報 `untracked working tree files would be overwritten`。安全步驟：
+```bash
+cd /workspace/src/navipath
+git fetch origin main
+# 先比對：差異「只該出現在路徑」(dataset_root_dir / conch_ckpt_path / class_ensemble_path)，
+# 超參數 (epochs/adam_lr/adam_weight_decay/pool_size…) 必須一致才安全。
+git show origin/main:QPMIL-VL/configs/main.yaml > /tmp/vendored_main.yaml
+diff /tmp/vendored_main.yaml QPMIL-VL/configs/main.yaml
+# 若差異只在路徑 → 安全，移除本地副本再 pull：
+rm -rf QPMIL-VL && git pull --rebase origin main
+```
+- **⚠️ `QPMIL-VL/configs/main.yaml` 內是絕對路徑**（`dataset_root_dir`、`conch_ckpt_path`、`class_ensemble_path` 目前指向我的 Mac 路徑）。**每台機器要自己改這三行**指到該機的 `data/`、CONCH 權重、`class_ensemble.json`。超參數（epochs/lr/wd）不要動，那是公平性基準。
+- **CONCH 權重不在 repo**（`*.bin` 被 ignore，~1GB）。team 要自行下載放到 `conch_ckpt_path`：見 `RUNPOD_SETUP.md`（用 `huggingface-hub` 從 `MahmoodLab/CONCH` 下載，需在 HF 申請存取）。
+
+---
+
+## 7. Repo 導覽（哪份檔做什麼）
+| 路徑 | 用途 |
+|---|---|
+| `paper/paper_body.tex` `references.bib` `figs/` | **論文正本**（Overleaf）。要看「我們主張什麼」先讀這裡。 |
+| `paper/REVIEW_rebuttal.md` | reviewer 視角挑刺 + rebuttal 彈藥。 |
+| `ONBOARDING_runbook.md`（本檔）| 怎麼跑、跑過什麼、為什麼、下一步。 |
+| `PAPER_DRAFT_v0.4.md` | Markdown 主稿（與 tex 同內容，方便 diff/編輯）。 |
+| `METHOD_v0.4.md` `RELATED_WORK_v0.4.md` `PAPER_OUTLINE_v0.4.md` | 各節草稿來源（已併入主稿，保留供追溯）。 |
+| `FAIRNESS_sanity_check_zh.md` | ConSlide→QPMIL pivot 的公平性說明（報告教授用）。 |
+| `train_qpmil_runner.py` | 步驟 A：QPMIL baseline + frozen backbone。 |
+| `train_navipath.py` + `configs/*.yaml` | 步驟 B：NaviPath decoupled。 |
+| `train_router_v0.py` | 步驟 C/D：router 訓練 + budget 評估 + Plan B。 |
+| `navipath_moe/` | router/expert/loss/qpmil_adapter 等核心模組。 |
+| `tools/{collect_results,plot_results,draw_arch}.py` | 彙整表格 / 出圖 / 架構圖。 |
+| `outputs/*.json *.pt` | 真實結果（RunPod 跑的，已追蹤）。`outputs/figs/` 圖。 |
+| `QPMIL-VL/` | vendored backbone（upstream can-can-ya/QPMIL-VL @ 3a7a769）。 |
+| `outputs_history/` | 歷史證據（含 buggy 期的 log/json，rebuttal/追溯用）。 |
+| `README.md` | ⚠️ **舊版 M0–M9 敘事（歷史）**，仍把「zero forgetting」當賣點；**以 `paper/` 為準**（論文已誠實改述為 identity）。 |
+
+## 8. 已知待整理（未來 revisit 時可做，非阻擋）
+1. **README 重寫**：目前是 pivot 前的 NaviPath-MoE/MoE 敘事，與論文「selection forgetting」主線不同步（已加頂部 banner 指向 `paper/`，但全文待更新）。
+2. **main.yaml 路徑外部化**：把絕對路徑改成相對/環境變數，省去每機器手改（見 §6）。
+3. **MoE/expert 線**：已降級為 ablation；若投稿版本完全不提會更乾淨（目前散見於 README/早期 config）。
+4. 補強實驗見 §5（F1 λ-sweep、F2 paper-order Plan B、F3 泛化）。

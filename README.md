@@ -7,6 +7,27 @@ Backbone: [QPMIL-VL](https://github.com/can-can-ya/QPMIL-VL) with frozen [CONCH]
 
 ---
 
+> ### ⚠️ Read this first — current state (Jun 2026)
+> The project **pivoted** from a MoE/"zero-forgetting" framing to a focused
+> analysis paper on **selection forgetting** (a trainable patch router forgets
+> *what to look at* for old tasks, even when the frozen predictor cannot forget).
+> The sections **below (M0–M9) are kept as historical record** and still describe
+> the old MoE narrative and "guarantees zero forgetting" angle.
+>
+> **For the authoritative, current story, use these instead:**
+> - 📄 Paper: [`paper/paper_body.tex`](paper/paper_body.tex) (+ `references.bib`, `figs/`)
+> - 🏃 How to run / re-run anything: [`ONBOARDING_runbook.md`](ONBOARDING_runbook.md)
+> - 🛡️ Rebuttal ammo: [`paper/REVIEW_rebuttal.md`](paper/REVIEW_rebuttal.md)
+> - ⚖️ ConSlide→QPMIL fairness rationale: [`FAIRNESS_sanity_check_zh.md`](FAIRNESS_sanity_check_zh.md)
+>
+> **Important honesty note:** the paper reports `Forgetting = 0` as a *structural
+> identity* of the decoupled frozen backbone (not a contribution). Where the text
+> below sells "zero forgetting", read it through the paper's framing.
+> **Setup:** QPMIL-VL is now vendored in this repo; CONCH weights are **not**
+> (download separately, see `RUNPOD_SETUP.md`).
+
+---
+
 ## Overview
 
 Computational pathology models are increasingly deployed in clinical workflows that span multiple cancer types, but standard sequential fine-tuning suffers from **catastrophic forgetting**: accuracy on previously learned tasks degrades as new tasks are added. This project explores whether adding a **task-aware routing layer** on top of a frozen foundation model (CONCH/QPMIL-VL) can provide patch-level efficiency and specialization without forgetting.
