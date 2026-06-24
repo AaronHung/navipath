@@ -1,4 +1,5 @@
-QPMIL-VL/
+# QPMIL-VL is vendored (committed) — it's a hard dependency we patched (configs/main.yaml).
+# Upstream: https://github.com/can-can-ya/QPMIL-VL.git @ 3a7a769. Large weights stay ignored via *.bin / checkpoints/.
 .env
 __pycache__/
 *.pyc
