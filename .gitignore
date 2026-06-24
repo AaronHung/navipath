@@ -17,3 +17,5 @@ outputs_history/**/*.pt
 # The README in there IS tracked so the backup/restore guide lives in git.
 session_archive/*.jsonl
 session_archive/*.zip
+# LaTeX local build dir (artifacts + LNCS class files come from Overleaf/MICCAI)
+paper/_build/

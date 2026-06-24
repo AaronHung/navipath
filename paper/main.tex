@@ -1,0 +1,538 @@
+% =====================================================================
+% NaviPath / "Selection Forgetting" -- COMPAYL @ MICCAI 2026
+% Built FROM the official MICCAI 2026 LNCS template (do NOT change layout).
+% - Anonymized author block is the TEMPLATE'S original (only add paper ID).
+% - Acknowledgements / Disclosure of Interests are COMMENTED OUT for the
+%   double-blind submission (optional, and they count toward the 8-page
+%   limit). REINSERT them in the camera-ready version if accepted.
+% - REAL AUTHORS (camera-ready only, do NOT uncomment before acceptance):
+%     % Aaron Hung, <Affiliation>, <email>
+% - v1.1: trimmed to 3 figures (cut R-matrix + protocol + both budget plots),
+%   interleaved floats + \FloatBarrier so figures cannot spill into refs,
+%   split wide equations for the narrow LNCS column.
+% =====================================================================
+\documentclass[runningheads]{llncs}
+%
+\usepackage[T1]{fontenc}
+% T1 fonts will be used to generate the final print and online PDFs.
+%
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{placeins}   % \FloatBarrier: keep floats from drifting into refs
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{figs/}}
+%
+% ---- handy macros ----
+\newcommand{\go}{\ensuremath{\checkmark}}
+\newcommand{\nogo}{\ensuremath{\times}}
+\newcommand{\K}{\ensuremath{K}}
+%
+% ---- float placement tuning (reduces float-only pages and large gaps;
+%      does NOT alter margins, fonts, or line spacing) ----
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.82}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+%
+\begin{document}
+%
+\title{Selection Forgetting: Continual Patch Routing Forgets Old Tasks
+in Frozen-Foundation-Model Whole-Slide Image Classification}
+\titlerunning{Selection Forgetting}
+%
+% ----- Anonymized author block (MICCAI template; do NOT modify except paper ID) -----
+\author{Anonymized Authors}
+\authorrunning{Anonymized Author et al.}
+\institute{Anonymized Affiliations \\
+    \email{email@anonymized.com}}
+%
+\maketitle              % typeset the header of the contribution
+%
+\begin{abstract}
+Frozen pathology foundation models with prompt-based multiple-instance learning
+make continual whole-slide image (WSI) classification attractive: the encoder
+cannot drift, removing the classic source of catastrophic forgetting. Yet under
+compute budgets a model must still decide \emph{which} of a slide's thousands of
+patches to examine---a learnable step whose continual behaviour is unstudied. We
+attach a lightweight trainable patch router to a frozen CONCH$+$QPMIL backbone;
+since the predictor never consumes router-modified features (backbone forgetting
+is zero by construction), we isolate the selection mechanism. On the
+most-recently-learned task the router beats random, prototype, and semantic
+heuristics ($+2.5$--$6.7$\,pp at a 64-patch budget; 6/6). On \emph{old} tasks,
+however, its quality collapses \textbf{below random} (6/6)---a phenomenon we call
+\textbf{selection forgetting}. A same-task recency-flip test (varying only
+whether a task was learned last vs.\ first) drops accuracy from ${\sim}0.9$ to
+$0.33$--$0.40$, even for the sample-abundant lung task, ruling out
+difficulty/size confounds; a feature-space analysis shows the forgotten router
+\emph{confidently mis-prioritizes} rather than degrading to noise. The failure
+is recoverable in principle---a per-task router restores old-task selection from
+$0.33$ to $0.93$ (3/3 folds)---but a replay-free fix (EWC-on-router) does not
+($0.40$; 0/3), motivating selection-aware continual learning. We release code,
+configs, and figures.
+
+\keywords{Continual learning \and Whole-slide images \and Patch selection
+\and Foundation models \and Catastrophic forgetting.}
+\end{abstract}
+
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Whole-slide images (WSIs) are gigapixel and usually classified under the
+multiple-instance learning (MIL) paradigm: a slide is a bag of patch features
+aggregated into a slide-level prediction \cite{ilse2018abmil,lu2021clam}. Recent
+pathology foundation models supply strong \textbf{frozen} patch encoders
+\cite{lu2024conch,chen2024uni}, and prompt-based vision--language MIL adapts them
+by learning only small prompts/prototypes while the encoder stays frozen
+\cite{gou2025qpmil}. Freezing removes the classic source of catastrophic
+forgetting (the representation cannot drift). Yet a slide has thousands of
+patches, and under compute budgets a model must decide \textbf{which patches to
+look at}---a learnable step whose survival under continual learning has, to our
+knowledge, not been examined.
+
+Most continual-learning research targets forgetting of the \textbf{classifier
+or representation}, and mitigates it with regularization, distillation, or
+replay \cite{kirkpatrick2017ewc,li2017lwf,rebuffi2017icarl}, including
+prompt-based variants for frozen backbones
+\cite{wang2022l2p,wang2022dualprompt}. In contrast, the
+\textbf{patch-selection / attention mechanism} that decides what the model
+attends to has not been studied as a locus of forgetting. Our setting isolates
+exactly this question: because the prediction backbone is frozen and never
+consumes router-modified features, backbone-level forgetting is zero
+\textbf{by construction}, so any degradation we observe must come from the
+selection module alone.
+
+We add a lightweight, continually-trained patch router on top of a frozen
+CONCH$+$QPMIL backbone: it scores each patch and keeps the Top-\K{} for the
+unchanged backbone. On the \textbf{most-recently-learned} task it beats random,
+prototype, and semantic heuristics at tight budgets ($+2.5$--$6.7$\,pp at
+$\K{=}64$; 6/6 GO across folds and orders). However, on \textbf{old} tasks its
+selection quality \textbf{collapses below the random baseline} (6/6 NO-GO)---a
+phenomenon we call \textbf{selection forgetting}. A single-variable test
+isolates recency as the cause: for the \emph{same} task and test set, changing
+only whether it was learned \textbf{last} vs.\ \textbf{first} flips accuracy
+from ${\sim}0.9$ to $0.33$--$0.40$, even for the sample-abundant lung task. A
+feature-space analysis shows the forgotten router does not degrade to noise but
+\textbf{confidently mis-prioritizes}, explaining why it can fall \emph{below}
+random.
+
+Finally, we ask whether selection forgetting is recoverable. Storing a
+separate router per task (an upper bound) \textbf{fully restores} old-task
+selection (the oldest task's $\K{=}64$ accuracy returns from $0.33$ to $0.93$,
+matching all-patch accuracy and beating all heuristics; 3/3 folds), proving the
+signal is intact and the failure is genuine forgetting. A standard replay-free
+fix---Elastic Weight Consolidation applied to the router---does \textbf{not}
+suffice ($0.40$; 0/3), indicating that weight-level regularization is
+inadequate for selection forgetting and that selection-aware continual methods
+are needed. This question---how an autonomous selection/routing policy should
+persist across tasks---connects to the emerging interest in
+\emph{agentic AI for pathology} featured by this venue.
+
+\noindent\textbf{Contributions.}
+\begin{enumerate}
+\item We identify and name \textbf{selection forgetting}: in
+frozen-foundation-model continual WSI classification, a trainable patch router
+forgets how to select patches for old tasks, even when the predictor cannot
+forget.
+\item We provide a \textbf{clean causal demonstration} via a same-task
+recency-flip test (controlling task, data, and router; varying only recency)
+and \textbf{rule out} sample-size/difficulty confounds using the
+sample-abundant lung task (6/6).
+\item We give a \textbf{mechanistic} account: the forgotten router
+mis-prioritizes (selecting later-task-salient patches) rather than degrading to
+noise, which explains sub-random behaviour.
+\item We show selection forgetting is \textbf{recoverable in principle}
+(per-task router upper bound) but \textbf{not fixed by EWC-on-router},
+motivating selection-aware continual learning as future work.
+\end{enumerate}
+
+% =====================================================================
+\section{Related Work}
+\label{sec:related}
+
+\noindent\textbf{MIL and foundation models for WSIs.} Computational pathology
+casts WSI classification as multiple-instance learning (MIL): a slide is a bag
+of patch features pooled into a slide-level prediction
+\cite{ilse2018abmil,lu2021clam}, with attention/transformer aggregators
+improving the pooling \cite{shao2021transmil,li2021dsmil}. Large pretrained
+encoders now supply strong \emph{frozen} patch features
+\cite{chen2024uni,lu2024conch,huang2023plip}, extending image--text pretraining
+\cite{radford2021clip} to histology; prompt-based vision--language MIL keeps the
+encoder frozen and learns lightweight prompts/prototypes, including continually
+\cite{gou2025qpmil}. These methods assume all (or a fixed sampling of) patches
+are available and do not study \emph{which} patches to keep under a budget
+across tasks. We build on a frozen CONCH$+$QPMIL head and add a selector on top.
+
+\noindent\textbf{Continual learning.} Methods against catastrophic forgetting
+use regularization \cite{kirkpatrick2017ewc}, distillation \cite{li2017lwf}, and
+replay \cite{rebuffi2017icarl,chaudhry2019agem,buzzega2020der}; prompt-based
+variants adapt frozen backbones with small prompts
+\cite{wang2022l2p,wang2022dualprompt,smith2023coda}. Crucially, this literature
+studies forgetting of the \textbf{classifier/representation}; we instead expose
+forgetting of a \textbf{patch-selection} mechanism and test whether a standard
+replay-free regularizer (EWC, on the router) mitigates it.
+
+\noindent\textbf{Budgeted inference and routing.} To cut compute, prior work
+selects informative patches/regions \cite{bergner2023ips} or uses attention as
+saliency \cite{ilse2018abmil}; conditional computation routes inputs to experts
+\cite{shazeer2017moe,fedus2022switch}. We borrow only the routing idea (a
+per-patch scalar router) and compare it against training-free selectors under
+explicit budgets. To our knowledge, no prior work studies whether a
+\emph{trainable patch selector} itself forgets across tasks in frozen-FM
+continual WSI classification.
+
+% =====================================================================
+\section{Method}
+\label{sec:method}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.78\linewidth]{Fig1_arch.pdf}
+\caption{NaviPath's decoupled design. A frozen CONCH$+$QPMIL prediction path
+(blue) shares patch features with a lightweight, continually-trained router
+(orange) that scores patches and keeps the Top-\K{} for the unchanged backbone.
+Since the predictor never consumes router-modified features, backbone forgetting
+is zero by construction, so the router is the sole locus of continual learning.
+Plan B (purple, dashed) consolidates the router (per-task / EWC).}
+\label{fig:arch}
+\end{figure}
+
+\noindent\textbf{Notation.} A slide has $n$ patches with frozen CONCH features
+$z_i\in\mathbb{R}^{512}$; $\hat{(\cdot)}$ denotes L2-normalization,
+$\{t_c\}_{c=1}^{C}$ class-text features, $\{p_m\}_{m=1}^{M}$ prototype features,
+and $\phi$ the router parameters.
+
+\subsection{Problem setup}
+We study class-incremental WSI classification under a fixed feature budget.
+Tasks $t=1,\dots,T$ arrive sequentially; after task $t$ the model classifies
+slides from all seen tasks using at most \K{} patches per slide ($\K\ll n$). We
+separate two sub-problems usually conflated: \emph{what to predict}
+(classifier) and \emph{what to look at} (selection). The decoupled design is
+summarized in Fig.~\ref{fig:arch}.
+
+\subsection{Decoupled prediction backbone}
+Prediction reuses a prompt-based continual MIL head (QPMIL) on the frozen CONCH
+features. The prediction path never consumes router- or expert-transformed
+features, so backbone-level forgetting is zero \textbf{by construction}:
+\begin{equation}
+\hat{y} = \arg\max\; g_{\theta^\ast}\!\big(\{z_i\}_{i\in\mathcal{S}}\big),
+\qquad \theta^\ast \text{ frozen}\;\Rightarrow\;
+\mathrm{Forgetting}\equiv 0 .
+\label{eq:decouple}
+\end{equation}
+
+\subsection{Trainable patch router}
+For each patch we compute four task-count-invariant summary statistics (max and
+entropy of class-text similarity; max and mean prototype similarity) and map
+$[z_i;s_i]$ through a two-layer MLP to a scalar importance $r_i$:
+\begin{equation}
+\begin{aligned}
+s_i &= \big[\,\max_c \hat{z}_i^\top \hat{t}_c,\;\;
+           H(\mathrm{softmax}_c\,\hat{z}_i^\top \hat{t}),\\
+&\qquad\;\; \max_m \hat{z}_i^\top \hat{p}_m,\;\;
+           \tfrac{1}{M}\textstyle\sum_m \hat{z}_i^\top \hat{p}_m \,\big],\\[2pt]
+r_i &= \mathrm{MLP}_\phi([z_i;s_i]).
+\end{aligned}
+\label{eq:score}
+\end{equation}
+At inference we keep the Top-\K{} patches:
+\begin{equation}
+\mathcal{S}_K = \underset{i}{\mathrm{top\text{-}}K}\; r_i,
+\qquad |\mathcal{S}_K|=K.
+\label{eq:topk}
+\end{equation}
+The router ($\approx$132K params) is the only component trained across tasks;
+the backbone stays frozen.
+
+\subsection{Differentiable training}
+Because hard Top-\K{} is non-differentiable, we train with a soft-route
+objective: scores over the selected set are softmax-normalized into weights,
+aggregated into a bag embedding, and classified by the frozen text head;
+gradients reach $\phi$ only through the weights.
+\begin{equation}
+\begin{gathered}
+w_i=\frac{\exp(r_i)}{\sum_{j\in\mathcal{S}_K}\exp(r_j)},\qquad
+\bar{z}=\widehat{\textstyle\sum\nolimits_{i\in\mathcal{S}_K} w_i z_i},\\[2pt]
+\mathcal{L}_{\text{route}}=\mathrm{CE}\big(\sigma\,\bar{z}F_{\text{txt}}^\top,\,y\big).
+\end{gathered}
+\label{eq:softroute}
+\end{equation}
+
+\subsection{Selection baselines}
+We compare the router against three training-free selectors that pick the
+Top-\K{} patches by (i) random; (ii) prototype similarity
+$\max_m \hat z_i^\top\hat p_m$; (iii) semantic similarity
+$\max_c \hat z_i^\top\hat t_c$. All feed the same frozen backbone, so any
+accuracy gap is due to selection alone.
+
+\subsection{Router consolidation (mitigation)}
+To test recoverability we add replay-free consolidation on the router: after
+each task we estimate a diagonal Fisher and penalize drift of important weights
+on later tasks (EWC-on-router); we also report a \textbf{per-task router} (one
+stored per task) as an empirical upper bound.
+\begin{equation}
+\begin{gathered}
+F^{(t)}_j=\mathbb{E}_{\mathcal{D}_t}\!\big[(\partial \mathcal{L}_{\text{route}}/\partial \phi_j)^2\big],\\[2pt]
+\mathcal{L}^{(t+1)}=\mathcal{L}_{\text{route}}
++\lambda\!\sum_{\tau\le t}\!\sum_j F^{(\tau)}_j(\phi_j-\phi^{\ast(\tau)}_j)^2.
+\end{gathered}
+\label{eq:ewc}
+\end{equation}
+
+\subsection{Evaluation protocol}
+Four TCGA tasks, two orders (paper/reverse), three folds, budgets
+$\K\in\{\text{All},256,128,64,32\}$. We report Top-1 accuracy and a GO/NO-GO
+criterion: a selector is \textbf{GO} if it beats the best of the three
+heuristics at $\K{=}64$ (router@64 $>\max\{$random, prototype, semantic$\}$@64),
+else \textbf{NO-GO}. We evaluate both the most-recent and each old task to expose
+recency-dependent selection forgetting (Fig.~\ref{fig:recency}).
+
+% =====================================================================
+\section{Experiments and Results}
+\label{sec:exp}
+
+\subsection{Experimental setup}
+\textbf{Data and tasks.} We use four TCGA cohorts as a class-incremental
+sequence of binary subtyping tasks---lung (NSCLC), breast (BRCA), renal (RCC),
+esophageal (ESCA)---for eight classes total (label shifts $0,2,4,6$). Patches
+are encoded once by a frozen CONCH model into 512-d features \cite{lu2024conch}.
+We evaluate two orders, \textbf{paper} (lung$\to$brca$\to$rcc$\to$esca) and
+\textbf{reverse} (esca$\to$rcc$\to$brca$\to$lung), each over \textbf{3 folds}
+(official splits), and report the mean. The reverse order makes small-sample esca
+the \emph{oldest} and large-sample lung the \emph{most-recent} (vice-versa for
+paper), enabling the same-task recency comparison of Sec.~\ref{sec:recency}.
+
+\noindent\textbf{Backbone (prediction path).} QPMIL on frozen CONCH features
+\cite{gou2025qpmil}, trained per task with Adam (lr $1\mathrm{e}{-3}$, wd
+$5\mathrm{e}{-4}$, 12 epochs/task); the QPMIL baseline shares this budget, so
+Table~\ref{tab:acc} comparisons are matched.
+
+\noindent\textbf{Router (selection path).} The MicroRouter is a two-layer MLP
+($\approx$132K params) trained continually with Adam (lr $5\mathrm{e}{-4}$, wd
+$1\mathrm{e}{-4}$, 5 epochs/task) via the soft-route objective
+(Sec.~\ref{sec:method}), backbone frozen throughout.
+
+\noindent\textbf{Budgets and selectors.} We compare the learned router against
+the three training-free selectors of Sec.~\ref{sec:method}; the small esca test
+set motivates the lung-based confound check in Sec.~\ref{sec:recency}.
+
+\subsection{Backbone accuracy and the necessity of decoupling}
+Under matched training our frozen-backbone setup attains continual accuracy on
+par with QPMIL (Table~\ref{tab:acc}): ACC $0.879/0.886$ (paper/reverse) with
+\textbf{Forgetting $=0$}---an \textbf{identity, not a contribution} (a frozen
+predictor is flat by construction)---vs.\ QPMIL's $0.924/0.917$. Decoupling is
+\emph{necessary}: a non-decoupled variant, where trainable experts transformed
+the features fed back to the backbone, caused severe interference
+($0.378/0.218$ accuracy, $0.735/0.950$ forgetting). We therefore fix the
+predictor and study the only continually-learned component---the router.
+
+\begin{table}[htbp]
+\centering
+\caption{Continual accuracy (backbone level, mean$\pm$std over 3 folds). QPMIL
+baseline and NaviPath use matched training (12 epochs/task, Adam lr 1e-3,
+wd 5e-4). NaviPath's Forgetting$=0$ is a decoupling identity, not a
+contribution; QPMIL ACC $\ge$ NaviPath, so our contribution is the selection
+analysis, not ACC.}
+\label{tab:acc}
+\small\begin{tabular}{llccc}
+\toprule
+Method & Order & ACC & Forgetting & BWT \\
+\midrule
+QPMIL baseline       & paper   & $0.924\pm0.016$ & $0.017\pm0.022$ & $-0.017\pm0.022$ \\
+QPMIL baseline       & reverse & $0.917\pm0.026$ & $0.041\pm0.023$ & $-0.041\pm0.023$ \\
+NaviPath (decoupled, ours) & paper   & $0.879\pm0.030$ & $0.000$ & $0.000$ \\
+NaviPath (decoupled, ours) & reverse & $0.886\pm0.030$ & $0.000$ & $0.000$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The router helps on recently-learned tasks}
+On the \textbf{most-recently-learned} task, the learned router selects more
+informative patches than all training-free heuristics at tight budgets
+(Table~\ref{tab:router}). At $\K{=}64$ it reaches $0.956$
+(esca, recent) and $0.922$ (lung, recent), versus the best heuristic $0.889$ and
+$0.897$ respectively, i.e.\ $+2.5$--$6.7$\,pp; using only 64 of thousands of
+patches nearly matches all-patch accuracy. This holds for both recent tasks
+across all folds and orders (6/6 GO), showing the router \emph{can} learn a
+useful selection policy.
+
+\subsection{Selection forgetting on old tasks}
+The picture reverses for \textbf{old} tasks---those learned early and then
+followed by other tasks. Here the router's selection quality drops \textbf{below
+the random baseline} at tight budgets (Table~\ref{tab:router}):
+$\K{=}64$ accuracy falls to $0.333$ (esca, old) and
+$0.397$ (lung, old), against best heuristics of $0.822$ and $0.813$ (6/6
+NO-GO). Because the predictor is unchanged, this degradation is attributable to
+the selection module alone. We term this \textbf{selection forgetting}: the
+router forgets how to choose patches for tasks it learned earlier.
+
+\begin{table}[htbp]
+\centering
+\caption{Patch selection at $\K{=}64$, recent vs.\ old (accuracy, mean over 3
+folds). \textbf{Router (ours)} is our learned selector; \emph{Random},
+\emph{Proto.}\ (prototype sim.), and \emph{Sem.}\ (semantic sim.)\ are the three
+training-free baselines, all feeding the \emph{same} frozen backbone; ``All''
+is all-patch accuracy. ``vs.\ base'' is GO if Router (ours)@64 beats
+\emph{every} baseline@64, else NO-GO. The router beats all baselines on recent
+tasks (6/6 GO) but falls below all of them on old tasks (6/6 NO-GO)---selection
+forgetting. Budget curves over $\K\in\{256,128,32\}$ are in
+Fig.~\ref{fig:recency}.}
+\label{tab:router}
+\small\begin{tabular}{llcccccc}
+\toprule
+Task & Recency & All & \textbf{Router (ours)} & Random & Proto. & Sem. & vs.\ base \\
+\midrule
+esca & RECENT (paper, last)   & 0.933 & \textbf{0.956} & 0.889 & 0.711 & 0.867 & \go\,(3/3) \\
+lung & RECENT (reverse, last) & 0.892 & \textbf{0.922} & 0.881 & 0.831 & 0.897 & \go\,(3/3) \\
+esca & OLD (reverse, first)   & 0.867 & \textbf{0.333} & 0.822 & 0.778 & 0.778 & \nogo\,(0/3) \\
+lung & OLD (paper, first)     & 0.764 & \textbf{0.397} & 0.783 & 0.705 & 0.813 & \nogo\,(0/3) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Same-task recency flip: a clean causal test}
+\label{sec:recency}
+To rule out that old tasks are simply harder or smaller, we compare the
+\emph{identical} task and test set under the two orders, changing only whether
+the task was learned \textbf{last} (recent) or \textbf{first} (old). Selection
+accuracy flips sharply (Fig.~\ref{fig:recency}): lung $0.922\to0.397$ and esca
+$0.956\to0.333$ at $\K{=}64$, isolating recency as the cause. Critically, the
+flip also occurs for \textbf{lung}, the most sample-abundant task, excluding
+sample-size/difficulty confounds (6/6 folds).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.78\linewidth]{P0b_recency_flip.pdf}
+\caption{\textbf{Same-task recency flip (core result).} For the identical task
+and test set, the router selects well when the task was learned last
+(solid, ${\sim}0.9$) but collapses below random when the same task was learned
+first and overwritten (dashed, $0.33$--$0.40$). Holds for both lung and esca,
+excluding sample-size/difficulty confounds.}
+\label{fig:recency}
+\end{figure}
+
+\subsection{Mechanism: confident mis-prioritization, not noise}
+A feature-space visualization (Fig.~\ref{fig:mechanism}) scores the \emph{same}
+esca slide with the recent vs.\ the long-ago router. The forgotten router does
+\textbf{not} collapse to noise; it keeps structured scores but concentrates its
+Top-\K{} on a \emph{different}, later-task-salient sub-population. This
+\textbf{confident mis-prioritization} explains why old-task selection can fall
+\emph{below} random (actively wrong) rather than merely matching it.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.72\linewidth]{P2contrast_esca_fold1.pdf}
+\caption{\textbf{Mechanism.} The same esca slide in CONCH feature space (shared
+t-SNE), scored by the router when esca was recent (left) vs.\ old/overwritten
+(right). The forgotten router keeps structured scores but concentrates its
+Top-\K{} on a different, later-task-salient sub-population---confident
+mis-prioritization, explaining sub-random behaviour.}
+\label{fig:mechanism}
+\end{figure}
+
+\subsection{Mitigation: recoverable in principle, but not by EWC}
+\label{sec:mitigation}
+Finally, we test recovery on the oldest task (Table~\ref{tab:planb}, 3-fold). A
+\textbf{separate router per task} (empirical upper bound) \textbf{fully restores}
+old-task selection: $\K{=}64$ accuracy rises from $0.333$ to $\mathbf{0.933}$
+(flat across budgets, above every heuristic; GO 3/3), proving the signal is
+intact and the failure genuine. In contrast, \textbf{EWC-on-router} barely helps
+($0.333\to0.400$; NO-GO 0/3) while sparing recent-task selection. Weight-level
+consolidation is thus insufficient for selection forgetting, motivating
+selection-aware approaches (Sec.~\ref{sec:discussion}).
+
+\begin{table}[htbp]
+\centering
+\caption{Mitigation ablation on the oldest task (esca, reverse order; router
+accuracy at budget \K{}, mean over 3 folds). \textbf{All rows are our router}
+under different consolidation strategies; ``best base'' is the best training-free
+selector@64 (the bar to clear). The per-task router (ours, upper bound) fully
+restores old-task selection to recent-task levels (GO 3/3), whereas
+EWC-on-router (ours) barely moves the needle (NO-GO 0/3): weight-level
+consolidation is insufficient for selection forgetting.}
+\label{tab:planb}
+\small\begin{tabular}{lcccccc}
+\toprule
+Router consolidation & @256 & @128 & @64 & @32 & best base@64 & GO \\
+\midrule
+none (ours, continual)            & 0.511 & 0.400 & \textbf{0.333} & 0.333 & 0.822 & \nogo\,(0/3) \\
+EWC-on-router (ours)              & 0.622 & 0.422 & \textbf{0.400} & 0.267 & 0.822 & \nogo\,(0/3) \\
+per-task router (ours, upper bound)& 0.933 & 0.933 & \textbf{0.933} & 0.933 & 0.822 & \go\,(3/3) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+% =====================================================================
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+\noindent\textbf{Selection forgetting is distinct from classifier forgetting.}
+With the backbone frozen (Forgetting$=0$ by construction), every old-task
+degradation is attributable to the selection module---a forgetting phenomenon
+the continual-learning literature, focused on classifier/representation, does
+not capture: even when \emph{what to predict} cannot be forgotten, \emph{what to
+look at} can. This matters broadly for budget-constrained inference with frozen
+foundation models, where a learned selector front-ends a fixed predictor.
+
+\noindent\textbf{Why does EWC fail while a per-task router fully recovers?} The
+per-task recovery ($0.33\to0.93$) shows the selection signal is still present in
+the frozen features; the single continual router overwrites the \emph{ranking} it
+learned for old tasks. EWC penalizes drift of individual weights, but what
+matters is the induced \emph{ordering} of patch scores---a global, nonlinear
+function of those weights---so weight-space penalties are a poor proxy for a
+selection policy. Selection-aware objectives (e.g.\ distilling old-task score
+rankings) are thus more promising. (We report Forgetting$=0$ as an identity, not
+a contribution: it is the price of decoupling.)
+
+\noindent\textbf{Limitations.} (i) We study four TCGA cohorts from a single
+source; broader datasets and longer sequences would strengthen generality.
+(ii) The oldest reverse-order task (esca) has a small test set, mitigated by the
+sample-abundant lung task showing the same flip. (iii) The router is a scalar
+v0; richer (set-level/attention) selectors may behave differently. (iv) The
+mitigation study (Table~\ref{tab:planb}) covers the oldest task over 3 folds;
+extending per-task/EWC to every task/order is future work, though both effects
+are consistent across folds (3/3).
+
+% =====================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+We show that adding a trainable patch router to a frozen-foundation-model
+continual WSI classifier introduces \textbf{selection forgetting}: the router
+selects well for the most-recent task but, for older tasks, falls below a random
+baseline. A same-task recency-flip test establishes recency as the cause and
+excludes sample-size confounds, and a feature-space analysis reveals confident
+mis-prioritization rather than noise. The phenomenon is recoverable in
+principle---a per-task router restores old-task selection to the all-patch
+level---yet a standard replay-free regularizer (EWC-on-router) does not fix it.
+We argue that \textbf{selection-aware continual learning} is needed when a
+learned selector front-ends a frozen predictor, and we release our code,
+configs, and figures to support follow-up work.
+
+% =====================================================================
+% ACKNOWLEDGEMENTS / DISCLOSURE OF INTERESTS
+% Optional for the double-blind submission and they COUNT toward the 8-page
+% limit. REINSERT (uncomment) in the camera-ready version if accepted.
+% =====================================================================
+% \begin{credits}
+% \subsubsection{\ackname} (Add funding/acknowledgements in the camera-ready.)
+%
+% \subsubsection{\discintname}
+% The authors have no competing interests to declare that are relevant to the
+% content of this article.
+% \end{credits}
+
+\FloatBarrier
+% =====================================================================
+% Bibliography. For LNCS use splncs04.
+% =====================================================================
+\bibliographystyle{splncs04}
+\bibliography{references}
+
+\end{document}

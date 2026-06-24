@@ -1,9 +1,22 @@
 # Overleaf SOP — 第一次投 COMPAYL @ MICCAI 2026
 
 > 給第一次用 Overleaf / 第一次投稿的你。照著做就好。
-> 官方規定(已查證 2026/06):8 頁正文(含圖表)+ 最多 2 頁 references;**不可改 template**
-> (改 margin/行距/字體 = desk reject);**匿名**;經 **OpenReview** 投稿;
-> **supplementary 只能放影片,禁止 PDF/文字/分析**;featured 主題含 *agentic AI in pathology*。
+> 官方規定(已查證 2026/06/24,來源 compayl.com/workshop + conferences.miccai.org/2026):
+> - **頁數**:正文 ≤ 8 頁(含圖表、conclusion、acknowledgement)+ 最多 2 頁「只放 references」。
+> - **格式**:必須用官方 MICCAI 2026 / Springer LNCS template;**不可改 margin/行距/字體/排版**
+>   (含 `\vspace`、`\hspace` 偷空間)= **automatic desk reject**。PC 有權要求你交 LaTeX 原始碼查核。
+> - **匿名(double-blind)**:template 已內建匿名 `\author` 區塊,**不可刪改**(刪了當格式違規);
+>   正文/致謝/citation/連結都不可洩漏身分;引用自己的論文要用第三人稱;若放 code repo 連結需匿名化。
+> - **投稿系統**:**OpenReview**(group: MICCAI.org/2026/Workshop/COMPAYL)。
+> - **重要日期(AoE)**:投稿 **2026/07/01**;錄取通知 2026/07/31;camera-ready 2026/08/23。
+> - **supplementary**:COMPAYL 頁面說「可附,但 reviewer 沒義務讀」;MICCAI 主會規則更嚴(只收
+>   avi/mp4/wmv 多媒體,禁 PDF/proof/分析)。兩者有出入 → **安全做法:所有必要內容都放進 8 頁正文,
+>   不依賴 supplementary**(我們的 fairness 說明就留正文 §4.1 + 當 rebuttal 彈藥)。
+> - featured 主題含 *agentic AI in pathology*(我們在 intro 結尾已 hook 到)。
+>
+> 官方 template 入口:COMPAYL workshop 頁面底部有 **"LaTeX template"** 連結;或 MICCAI 2026
+> 官網 Important Dates 頁的 **"MICCAI2026 Latex Template"**;或 Overleaf 搜尋 **"Springer LNCS"**
+> (一定要選含 *Disclosure of Interests* 段落的最新版)。三者擇一即可。
 
 ---
 
@@ -75,8 +88,13 @@
 ---
 
 ## 3. 關於 supplementary(重要,直接回答你的疑問)
-- COMPAYL/MICCAI 2026:**supplementary 只能是多媒體(avi/mp4/wmv),嚴禁 PDF/文字/proof/分析/額外結果**,違反 = desk reject。
-- 所以我們的 **fairness 報告不能當 supplementary 投出去**。
+- 規則有出入(已查證 2026/06/24):
+  - **COMPAYL workshop 頁面**:「Supplementary material can be added to the paper, but reviewers
+    are not expected to read it.」→ 可附,但 reviewer 沒義務讀。
+  - **MICCAI 2026 主會規則**(COMPAYL 宣稱沿用其格式):supplementary **只收 avi/mp4/wmv 多媒體**,
+    嚴禁 PDF/proof/分析/額外結果,違反 = desk reject。
+- 兩者衝突 → **最安全做法:不靠 supplementary**,把所有審稿必要內容塞進 8 頁正文。
+- 所以我們的 **fairness 報告不投 supplementary**(即便 COMPAYL 允許,reviewer 也不一定讀;若被當 MICCAI 主會規則,PDF 反而違規)。
 - 正確用法:
   1. **公平性的核心一句話已在正文 §4.1**(matched 12 epochs/lr/wd、所有 selector 餵同一 frozen head),
      是**正面陳述**,不是防衛性辯解 → reviewer 讀正文就懂,不會更被 challenge。
@@ -89,3 +107,13 @@
 走官方 LNCS template(路 A)→ 貼我的 preamble + body → 上傳 `references.bib` + `figs/` →
 pdfLaTeX 編兩次 → 控制 8+2 頁、不動格式 → Share 給 team 共編 → OpenReview 投。
 fairness 留給教授與 rebuttal,**不**進 supplementary。
+
+---
+
+## 5. 若錄取(camera-ready,2026/08/23 前;先知道就好)
+1. **去匿名**:把 `\author{Anonymous}` / `\institute{Anonymous}` 換成真實姓名與單位;每位作者
+   `\author{}` 之後加 `\index{Last, First}`。
+2. **保留並填寫** 文末 `\begin{credits}` 的 **Disclosure of Interests**(competing interests)。
+3. 可加回 `\subsubsection{\ackname}` 致謝與 funding(投稿時匿名版不要放)。
+4. 交件需附 **`LatexSource-XXXX/`** 資料夾:所有 `.tex` + 圖(pdf/png/...) + `references.bib` +
+   用到的 style 檔,刪掉多餘檔。(XXXX = OpenReview 給的 paper ID,不足 4 位補 0。)
