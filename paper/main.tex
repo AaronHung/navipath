@@ -56,25 +56,24 @@ in Frozen-Foundation-Model Whole-Slide Image Classification}
 %
 \begin{abstract}
 Frozen pathology foundation models with prompt-based multiple-instance learning
-make continual whole-slide image (WSI) classification attractive: the encoder
-cannot drift, removing the classic source of catastrophic forgetting. Yet under
-compute budgets a model must still decide \emph{which} of a slide's thousands of
-patches to examine---a learnable step whose continual behaviour is unstudied. We
-attach a lightweight trainable patch router to a frozen CONCH$+$QPMIL backbone;
-since the predictor never consumes router-modified features (backbone forgetting
-is zero by construction), we isolate the selection mechanism. On the
-most-recently-learned task the router beats random, prototype, and semantic
-heuristics ($+2.5$--$6.7$\,pp at a 64-patch budget; 6/6). On \emph{old} tasks,
-however, its quality collapses \textbf{below random} (6/6)---a phenomenon we call
-\textbf{selection forgetting}. A same-task recency-flip test (varying only
-whether a task was learned last vs.\ first) drops accuracy from ${\sim}0.9$ to
-$0.33$--$0.40$, even for the sample-abundant lung task, ruling out
-difficulty/size confounds; a feature-space analysis shows the forgotten router
-\emph{confidently mis-prioritizes} rather than degrading to noise. The failure
-is recoverable in principle---a per-task router restores old-task selection from
+make continual whole-slide image (WSI) classification attractive: a frozen
+encoder cannot drift, removing the classic source of catastrophic forgetting.
+Yet under compute budgets a model must still decide \emph{which} of a slide's
+thousands of patches to examine---a learnable step whose continual behaviour is
+unstudied. We attach a lightweight trainable patch router to a frozen
+CONCH$+$QPMIL backbone; because the predictor never consumes router-modified
+features (backbone forgetting is zero by construction), we isolate the selection
+mechanism. On the most-recent task the router beats random, prototype, and
+semantic heuristics ($+2.5$--$6.7$\,pp at a 64-patch budget; 6/6), but on
+\emph{old} tasks its quality collapses \textbf{below random} (6/6)---a phenomenon
+we call \textbf{selection forgetting}. A same-task recency-flip test (varying
+only whether a task was learned last vs.\ first) drops accuracy from ${\sim}0.9$
+to $0.33$--$0.40$, even for the sample-abundant lung task, ruling out
+difficulty/size confounds, while a feature-space analysis shows the forgotten
+router \emph{confidently mis-prioritizes} rather than degrading to noise. The
+failure is recoverable---a per-task router restores old-task selection from
 $0.33$ to $0.93$ (3/3 folds)---but a replay-free fix (EWC-on-router) does not
-($0.40$; 0/3), motivating selection-aware continual learning. We release code,
-configs, and figures.
+($0.40$; 0/3), motivating selection-aware continual learning.
 
 \keywords{Continual learning \and Whole-slide images \and Patch selection
 \and Foundation models \and Catastrophic forgetting.}
@@ -193,7 +192,7 @@ continual WSI classification.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.78\linewidth]{Fig1_arch.pdf}
+\includegraphics[width=0.66\linewidth]{Fig1_arch.pdf}
 \caption{NaviPath's decoupled design. A frozen CONCH$+$QPMIL prediction path
 (blue) shares patch features with a lightweight, continually-trained router
 (orange) that scores patches and keeps the Top-\K{} for the unchanged backbone.
@@ -408,7 +407,7 @@ sample-size/difficulty confounds (6/6 folds).
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.78\linewidth]{P0b_recency_flip.pdf}
+\includegraphics[width=0.62\linewidth]{P0b_recency_flip.pdf}
 \caption{\textbf{Same-task recency flip (core result).} For the identical task
 and test set, the router selects well when the task was learned last
 (solid, ${\sim}0.9$) but collapses below random when the same task was learned
@@ -427,7 +426,7 @@ Top-\K{} on a \emph{different}, later-task-salient sub-population. This
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.72\linewidth]{P2contrast_esca_fold1.pdf}
+\includegraphics[width=0.66\linewidth]{P2contrast_esca_fold1.pdf}
 \caption{\textbf{Mechanism.} The same esca slide in CONCH feature space (shared
 t-SNE), scored by the router when esca was recent (left) vs.\ old/overwritten
 (right). The forgotten router keeps structured scores but concentrates its
