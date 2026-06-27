@@ -14,6 +14,9 @@
 | [04](04_generalization-and-attribution.md) | 通用化定位 與 歸因 | 通用 module＝我們的貢獻本體；贏了憑什麼是我們的機制 |
 | [05](05_interface-contract-and-compatibility.md) | 介面契約 與 相容性範圍（versioned） | backbone 要給什麼才能插進來、什麼能插什麼不能、隨版本演進 |
 | [06](06_glossary.md) | 架構 block 白話詞彙表 | 圖上每個 block 在說什麼（看板 `site/glossary.html`） |
+| [07](07_what-we-do-deep-dive.md) | 我們在做什麼（深入）/ N2 驗證什麼 | seq vs oneshot、Agent/CL 兩軸、router 無標註怎麼學會看哪、為何只測 esca |
+| [08](08_N3-analysis-defense.md) | N3 分析的答辯觀念 | CL 指標(mACC/Forgetting/BWT)、retention 表怎麼讀、budget 曲線、3-fold |
+| [09](09_zeroslide-and-rebuttals.md) | ZeroSlide 對比 與 老師疑慮回應 | budget 必要性、selection forgetting 是否 trivial、zero-shot navigation baseline |
 
 ## 相關正式文件
 - 架構決策：`specs/decisions/ADR-0006-*.md`（authoritative 架構圖 + 標題 + 對應表）
@@ -24,3 +27,6 @@
 - 2026-06-27：建立 wiki，新增 01/02/03。
 - 2026-06-27（晚）：新增 04（通用化/歸因）、05（介面契約/相容範圍, versioned）；校正「通用 module＝我們的貢獻本體」。
 - 2026-06-27（晚）：新增 06（架構 block 白話 glossary），同步看板 `site/glossary.html`。
+- 2026-06-27（深夜）：新增 07（N2 深入/我們在做什麼）、08（N3 答辯觀念）、09（ZeroSlide 對比 + 老師疑慮回應）；新增看板分頁「答辯筆記」`site/notes.html`（append-only），並掛進所有頁面導覽。
+- 2026-06-28：09 新增 F 節（zero-shot navigator 用詞陷阱 + 2×2 表 + 同架構換引擎）；同步看板答辯筆記；新增 `specs/features/SPEC-07-zero-shot-navigator.md`（policy_mode=zero_shot 實作規格）。
+- 2026-06-28：09 新增 G 節（兩種遺忘 classification vs navigation、與 ZeroSlide 同異、輸了怎麼辦、誰適合 Agent）；同步看板。**SPEC-07 程式已實作**（`sequential_observation.py` 加 `policy_mode`、`eval_sequential_observation.py` 加 `--policy-mode zero_shot`），Mac smoke 通過。

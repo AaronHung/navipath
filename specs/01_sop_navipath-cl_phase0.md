@@ -33,11 +33,13 @@
   - **Budget 效率**：`acc@K`（K=16/32/64/128）vs `acc@All`。
   - **CL 保留**：old-task `acc@K`，有 NSM vs 無 NSM（naive 連續訓練）。
   - **Agentic**：sequential vs one-shot Top-K（同 budget）。
-- **交付**：`outputs/seqobs_<order>_fold<f>_*.json` + `.log`（不覆蓋）；push。
+  - **zero-shot navigator baseline**（SPEC-07，`--policy-mode zero_shot`）：不訓練、frozen-FM 文字相似度選 patch；**不需 epochs/skill-bank、很快**，四個任務一次跑完。用來回應 ZeroSlide / 老師 challenge。
+- **交付**：`outputs/seqobs_<order>_fold<f>_*.json` + `.log`（router 與 `*_policy-zeroshot.json` 並存，不覆蓋）；push。
 - **驗收**：每格 json 非空、含 `task_index` / `budget` / `mode` 欄位。
 
 ### N3 — Mac 分析 + 結果圖（7/1）
 - pull → 用實際 json 產 `outputs/RESULTS_seqobs_<ts>.md` 與結果圖（budget 曲線、有/無 NSM 對比）。
+- **continual vs zero-shot navigator 對比表**：把 router-mode 與 `*_policy-zeroshot.json` 並列，回答「zero-shot navigation 夠不夠？」（wiki 09 G 節）。zero-shot 同時當 retention 表的「零遺忘參考線」。
 - **交付**：結果表 + `site/figs/` 更新；缺格標 `[MISSING]`，不捏造。
 
 ### N4 — 凍結 pilot + 雙月報告稿（7/2）
@@ -48,7 +50,7 @@
 - 報告內容：通用架構（agent + CL）+ 到 7/2 的實驗結果 + Phase-1/2 heads-up。**不報舊 selector，不假裝論文已完成。**
 
 ### N6 — 論文初稿（7/3–7/14）
-- 把 pilot 做成論文：problem framing（不以 QPMIL 開頭）、method（CNL/NSM/序列觀察）、experiments（budget 效率 + CL 保留 + EWC baseline + sequential vs one-shot ablation）。
+- 把 pilot 做成論文：problem framing（不以 QPMIL 開頭）、method（CNL/NSM/序列觀察）、experiments（budget 效率 + CL 保留 + EWC baseline + sequential vs one-shot ablation + **zero-shot vs continual navigator** 對比，呼應 ZeroSlide）。
 - **交付**：`paper/NaviPath-CL_draft_outline.md` → 正文初稿。
 
 ### N7 — 老師 review（7/15）

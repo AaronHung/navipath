@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NaviPath-CL — 答辯筆記</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .qa{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:12px 0;overflow:hidden;}
+  .qa>summary{cursor:pointer;list-style:none;padding:14px 18px;font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px;}
+  .qa>summary::-webkit-details-marker{display:none;}
+  .qa>summary::before{content:"▸";color:var(--muted);font-weight:400;}
+  .qa[open]>summary::before{content:"▾";}
+  .qa .body{padding:2px 18px 16px;font-size:13.5px;color:#34332e;line-height:1.7;}
+  .qa .body p{margin:8px 0;}
+  .qa .body ul{margin:8px 0;padding-left:20px;}
+  .qa .body li{margin:4px 0;}
+  .qa.blue{border-left:4px solid #3a78c2;}
+  .qa.teal{border-left:4px solid #15695a;}
+  .qa.purple{border-left:4px solid #7a5bb0;}
+  .secttl{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin:26px 0 6px;}
+  .secttl.blue{color:#3a78c2;} .secttl.teal{color:#15695a;} .secttl.purple{color:#7a5bb0;}
+  table.mini{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px;}
+  table.mini th,table.mini td{border:1px solid var(--line);padding:6px 10px;text-align:left;}
+  table.mini th{background:rgba(0,0,0,.03);}
+  .win{color:#15695a;font-weight:700;} .bad{color:#b03a3a;font-weight:700;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <span class="brand">NaviPath<span class="cl">-CL</span></span>
+    <a class="link" href="index.html">Storyline</a>
+    <a class="link" href="architecture.html">架構</a>
+    <a class="link" href="glossary.html">詞彙</a>
+    <a class="link active" href="notes.html">答辯筆記</a>
+    <a class="link" href="board.html">進度看板</a>
+    <a class="link" href="schedule.html">日程</a>
+    <a class="link" href="sop.html">SOP</a>
+  </div>
+</nav>
+
+<header class="hero compact">
+  <div class="wrap">
+    <div class="kicker">Defense Notes · append-only</div>
+    <h1 class="title sm">答辯筆記：必須理解才能守護的觀念</h1>
+    <p class="subtitle">被老師/reviewer 問時的完整底稿，持續添增。來源：<code>docs/wiki/07~09</code>。點標題展開。藍＝我們在做什麼（N2）、綠＝N3 分析、紫＝ZeroSlide / 老師疑慮。</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+
+    <div class="secttl blue">一、我們在做什麼（N2 在驗證什麼）· wiki 07</div>
+
+    <details class="qa blue" open>
+      <summary>一句話：我們到底在做什麼？</summary>
+      <div class="body">
+        <p>在一個<strong>凍結</strong>的病理 VLM backbone（QPMIL-VL = CONCH patch encoder + 文字分類頭）之上，外掛一層獨立的 <strong>Continual Navigation Layer</strong>。它回答：</p>
+        <p><em>當模型「一個癌症接一個癌症」依序學會 4 種癌症後，對<strong>最早學的那個癌症</strong>，還能不能正確地在整張 WSI 上知道「該看哪些 patch」？</em></p>
+        <p>我們發現「看哪」這能力會被後面任務覆蓋（遺忘），並用 per-task skill memory（NSM）救回。</p>
+      </div>
+    </details>
+
+    <details class="qa blue">
+      <summary>seq vs oneshot？單步還是多步？</summary>
+      <div class="body">
+        <ul>
+          <li><strong>budget</strong>：一張 WSI 最多准看幾個 patch（16/32/64/128/All）。</li>
+          <li><strong>one-shot（單步）</strong>：一次對所有 patch 打分，直接挑最高 K 個。</li>
+          <li><strong>sequential（多步）</strong>：分多輪，每輪挑幾個 → 更新 Observation State（已看 patch 的彙整）→ 在「已看內容」基礎上對剩餘 patch 重評（加 redundancy 懲罰）再挑。＝ agentic「邊看邊決定下一步」。</li>
+        </ul>
+        <p>oneshot＝單步選擇；sequential＝多步、有狀態的選擇。兩個都跑，是要證明「多步＋狀態」有沒有額外好處。</p>
+      </div>
+    </details>
+
+    <details class="qa blue">
+      <summary>這是 Agent 還是 CL？</summary>
+      <div class="body">
+        <table class="mini"><tr><th>軸</th><th>管什麼</th><th>模組</th></tr>
+          <tr><td><strong>Agent</strong></td><td>一張片內怎麼看、何時停</td><td>Sequential Budgeted Observation + Observation State</td></tr>
+          <tr><td><strong>CL</strong></td><td>學新癌症後，舊癌症還會不會看</td><td>Navigation Skill Memory (NSM) + Context Gate</td></tr>
+        </table>
+        <p>一句話：<strong>Agent 管「一張片內怎麼看」，CL 管「跨癌症別還記不記得怎麼看」。</strong></p>
+      </div>
+    </details>
+
+    <details class="qa blue">
+      <summary>router 跟以前的 selector / per-task 一樣嗎？</summary>
+      <div class="body">
+        <ul>
+          <li><strong>零件沿用</strong>：router 本體是 MicroRouterV0（小 MLP，輸入 = patch 特徵 + 4 個 summary 統計）。</li>
+          <li><strong>架構全新</strong>：舊 selector 只做 one-shot top-K（單步、無記憶）；現在把同一 router 包進 Sequential Observer（多步＋狀態）＋ NSM（每任務存一份權重）＋ Context Gate。</li>
+        </ul>
+        <p>擋 reviewer 用：<strong>舊 selector 是我們新框架的退化特例（oneshot + no-memory）；貢獻是外面那層 sequential + skill memory。</strong></p>
+      </div>
+    </details>
+
+    <details class="qa blue">
+      <summary>CL 怎麼設計？核心結果撐得住嗎？</summary>
+      <div class="body">
+        <p>依序訓練 4 任務 router，每學完一個就把權重快照存進 NSM；推論時 Context Gate（Phase-0 用 oracle = 已知任務 id）取對應 skill 再 navigate。對照組 nonsm 只留「學完 lung 後」那份 router（無記憶）去看 esca。</p>
+        <table class="mini"><tr><th>budget</th><th>nonsm（無記憶）</th><th>nsm（有記憶）</th></tr>
+          <tr><td>64</td><td class="bad">0.133（主動選錯＝災難性遺忘）</td><td class="win">0.867（救回）</td></tr>
+          <tr><td>16</td><td class="bad">0.20</td><td class="win">0.867</td></tr>
+        </table>
+        <p>問題存在（遺忘）＋ 我們的 memory 解決它 → CL 軸站得住。（nonsm@64=0.133 與舊版獨立驗過一致，重現無誤。）</p>
+      </div>
+    </details>
+
+    <details class="qa blue">
+      <summary>為什麼只測 esca？lung 會慢幾十倍嗎？</summary>
+      <div class="body">
+        <ul>
+          <li><strong>訓練階段 4 種癌症全部都訓練了</strong>（esca/rcc/brca/lung 各 5 epoch）。一個 fold ~3 小時幾乎全在訓練這 4 個 router。</li>
+          <li><strong>評估只測 esca</strong>：它最早學、最易被後面覆蓋，是遺忘最關鍵的觀察點；且 esca test 只有 15 張，eval 很快。</li>
+          <li><strong>inference 很便宜</strong>（打分→選 K→一次前傳），測 lung 不會慢幾十倍。慢的是訓練，且訓練已做完、存進 skill bank。</li>
+          <li><strong>N3 直接用同一 skill bank</strong>，把 task_index 換 1/2/3 eval rcc/brca/lung，<strong>不必重訓</strong>就能補成完整 4 任務 retention 表。</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="qa blue">
+      <summary>★ 沒有「醫生看哪裡」標註，router 怎麼學會看哪？（弱監督）</summary>
+      <div class="body">
+        <p>我們完全沒有 patch-level / gaze 標註，<strong>只有整張片的診斷 label</strong>。訓練流程：</p>
+        <ul>
+          <li>① router 對所有 patch 打分；② 取最高 K 個，softmax 權重加權聚合成 bag 向量；③ bag 丟進凍結的 QPMIL 文字分類頭得 logits；④ 跟整張片 label 算 cross-entropy，<strong>梯度只回傳到 router</strong>。</li>
+        </ul>
+        <p>關鍵在④：router 挑的 patch 聚合後讓分類<strong>正確</strong>則 loss 低，挑錯則高。為降 loss，router 被迫學會「把對診斷有判別力的 patch（病灶區）打高分」。<strong>沒人告訴它哪裡是腫瘤，它從『我挑了這些→診斷對不對』的回饋自己學出來</strong>（weakly-supervised / attention-MIL）。</p>
+        <p>Policy 例子：學 esca 時把 esca 病灶紋理打高分→分類成功→被強化；換看 rcc/brca/lung 判別區不同，需不同 skill。用 lung 的 policy 看 esca 會選錯→崩到 0.133→<strong>這就是為何需要 NSM。</strong></p>
+        <p>補充：losses.py 有 l_sem（對齊 CONCH 文字相似度的語義錨），但 N2 這版訓練迴圈<strong>只用 cross-entropy，沒開 l_sem</strong>。</p>
+      </div>
+    </details>
+
+    <details class="qa blue">
+      <summary>誠實版：經得起推敲嗎？（含 seq==oneshot 原因）</summary>
+      <div class="body">
+        <p><strong>站得住</strong>：CL 軸有乾淨證據；「無標註卻能 navigate」有明確弱監督原理；零件沿用、框架創新的定位誠實。</p>
+        <p><strong>主動承認的弱點</strong>：① Agent 軸 sequential 這版還沒贏 oneshot（報「進行中」）；② 目前只測 esca 單任務、單 fold、test set 小（15 張，顆粒 6.67%）。</p>
+        <p><strong>seq==oneshot 原因</strong>：(a) budget=16、step=16 只有單輪，redundancy 沒啟動；(b) 15 張顆粒太粗；(c) redundancy 權重相對 router 分數尺度太小。<strong>是調參/設定問題，不是 bug。</strong> 修法：base_score 正規化＋加大 redundancy＋縮小 step，並在大一點的 test set 上測。</p>
+      </div>
+    </details>
+
+
+    <div class="secttl teal">二、N3 分析的答辯觀念 · wiki 08</div>
+
+    <details class="qa teal">
+      <summary>N3 在做什麼？（不重訓）</summary>
+      <div class="body">
+        <p>N2 已把 4 任務 router 訓好、存進 NSM。<strong>N3 不重訓</strong>，只把同一 skill bank 對 task_index 0/1/2/3 分別 eval（esca/rcc/brca/lung），組出 retention 表＋畫圖。重點從「單看 esca」升級成「看整條任務流的記憶全貌」。</p>
+      </div>
+    </details>
+
+    <details class="qa teal">
+      <summary>必須懂的 CL 三指標（mACC / Forgetting / BWT）</summary>
+      <div class="body">
+        <p>設 a[i][j] = 學完第 i 個任務後測第 j 個任務的 acc。</p>
+        <ul>
+          <li><strong>mACC</strong>：全學完後 4 任務 acc 平均。整體好不好。</li>
+          <li><strong>Forgetting（越小越好）</strong>：每個舊任務「歷史最佳 − 最終」再平均。量被洗掉多少。</li>
+          <li><strong>BWT（越接近 0/正越好）</strong>：mean(最終 − 剛學完當下)。學新對舊是傷害(負)或幫助(正)。</li>
+        </ul>
+        <p>防答辯：nonsm 會出現大 Forgetting / 很負 BWT（esca 0.867→0.133）；nsm 把 Forgetting 壓近 0。<strong>對比這兩條就是 N3 主結果。</strong></p>
+      </div>
+    </details>
+
+    <details class="qa teal">
+      <summary>retention 表 / budget 曲線怎麼讀</summary>
+      <div class="body">
+        <p><strong>retention 表</strong>：列＝學到第幾任務，欄＝測哪任務，看下三角。對角線＝剛學完表現；同一欄往下掉＝遺忘。nsm 與 nonsm 兩張並排，一眼看出貢獻。</p>
+        <p><strong>budget 曲線</strong>：x=budget、y=acc。看 acc@K 多快逼近 acc@All（逼越快＝少少 patch 就抓到重點）。同圖疊 sequential vs one-shot；分不開就誠實標「增益待調參」。</p>
+      </div>
+    </details>
+
+    <details class="qa teal">
+      <summary>為何要 3-fold？成功判準是什麼？</summary>
+      <div class="body">
+        <p><strong>3-fold</strong>：esca test 僅 15 張，單 fold 顆粒度 6.67%，易被切分運氣影響。3 fold 取 mean±std 才有統計意義。缺格標 [MISSING]，不捏造。</p>
+        <p><strong>成功判準（先講好）</strong>：主判準(CL) nsm 舊任務 acc 顯著 &gt; nonsm 且 Forgetting 較小（已有 fold-1 強訊號）；次判準(Agent) acc@64 接近 acc@All；探索 sequential 是否 &gt; one-shot（多半打平，列 future）。</p>
+      </div>
+    </details>
+
+
+    <div class="secttl purple">三、ZeroSlide 對比 與 老師疑慮 · wiki 09</div>
+
+    <details class="qa purple" open>
+      <summary>ZeroSlide 在做什麼？我們輸了嗎？</summary>
+      <div class="body">
+        <p><strong>ZeroSlide 結論</strong>：WSI lifelong learning 用凍結病理 VLM 做 zero-shot 分類、吃全部 patch，就能跟需訓練的 CL 打平且天生零遺忘。<strong>它把「分類這一軸的 CL」幾乎關掉了。</strong></p>
+        <p>所以它不是對手，是<strong>我們的動機錨點</strong>：分類能 zero-shot，那「該看哪 (navigation)」也能 zero-shot 嗎？還是需要 continual navigation learning？</p>
+        <p><strong>「我們 oneshot 不好＝輸 ZeroSlide」是誤解</strong>：它比「全 patch 分類準度」；我們比「budget 下跨任務還記不記得怎麼選」。不同題目。我們的 nsm vs nonsm（0.867 vs 0.133）是在自己題目上贏，不衝突。</p>
+      </div>
+    </details>
+
+    <details class="qa purple">
+      <summary>對照表：ZeroSlide vs NaviPath-CL</summary>
+      <div class="body">
+        <table class="mini">
+          <tr><th></th><th>ZeroSlide</th><th>NaviPath-CL</th></tr>
+          <tr><td>軸</td><td>分類是否需 CL</td><td>navigation（看哪）是否需 CL</td></tr>
+          <tr><td>patch</td><td>全吃</td><td>budget 下選 K 個</td></tr>
+          <tr><td>訓練</td><td>不訓練(zero-shot)</td><td>navigation 層 trainable + NSM</td></tr>
+          <tr><td>遺忘</td><td>天生沒有</td><td>navigation 會遺忘 → NSM 解</td></tr>
+          <tr><td>產出</td><td>slide label</td><td>label ＋ Navigation Trace</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details class="qa purple">
+      <summary>★ 老師疑慮①：encode 完才選，budget 還省得到算力嗎？</summary>
+      <div class="body">
+        <p><strong>先承認</strong>：現行 encode-all→aggregate 下，encoder 已跑全部 patch，後段聚合 O(n·d) 線性，加 Top-K 幾乎不省時間。<strong>以「省 predictor 算力」當主動機站不住，放棄此 framing。</strong></p>
+        <p><strong>budget 的真正角色（改寫後）：</strong></p>
+        <ul>
+          <li><strong>1. 臨床可稽核 / 可解釋（最主要）</strong>：醫師/法規要「短、有序、可驗證的證據鏈」。budget=K 逼出最關鍵 K 個視野＋觀察順序（Navigation Trace）；全 patch heatmap 糊成一片不能稽核。<strong>跟省算力無關，是證據要可讀。</strong></li>
+          <li><strong>2. 下游每-patch 成本高時 K vs n 放大百倍</strong>：被選 patch 再餵大型 VLM/LLM、agent 逐 patch 推理、高倍重讀、人工複閱→成本移到下游，budget 變關鍵。agentic pipeline 正是這情境。</li>
+          <li><strong>3. 指向 select-before-encode 未來設計</strong>：先用便宜訊號決定哪些 patch 值得 encode，省最貴的 encoder passes。現在不適用，但本工作鋪路。</li>
+          <li><strong>4. 臨床直覺</strong>：WSI 太大，醫師看到某 pattern 就轉向、不逐格看。budget+sequential 把這形式化。</li>
+        </ul>
+        <p>一句話：<strong>budget 不是省算力，是為「可稽核證據鏈」與「下游昂貴觀察」；真正省算力的版本（select-before-encode）是本工作鋪路的未來式。</strong></p>
+      </div>
+    </details>
+
+    <details class="qa purple">
+      <summary>★ 老師疑慮②：selection forgetting 是 trivial 嗎？</summary>
+      <div class="body">
+        <p><strong>承認</strong>：任何 trainable 模組 sequentially train 都會遺忘（如 ResNet 當 CL backbone）。「觀察到遺忘」本身不是貢獻，老師對。</p>
+        <p><strong>我們的貢獻不是「發現遺忘」，而是：</strong></p>
+        <ul>
+          <li>① <strong>解法</strong>：NSM 把 navigation 遺忘救回（0.133→0.867）。</li>
+          <li>② <strong>問對問題</strong>：承 ZeroSlide——分類能 zero-shot 不遺忘了，那 navigation 呢？我們證明 navigation 這臨床關鍵能力不會自動免疫於遺忘，需當成 CL 問題。把 ZeroSlide 的問題延伸到它沒碰、且更要緊的維度。</li>
+          <li>③ 用詞從「selection forgetting 是新發現」改為「<strong>continual navigation：zero-shot navigation 夠不夠？</strong>」</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="qa purple" open>
+      <summary>★ 釐清：zero-shot navigator ≠ one-shot 的兄弟（2×2 表）</summary>
+      <div class="body">
+        <p>用詞陷阱：zero-shot、one-shot、sequential 都有「shot」，但講兩件事。</p>
+        <table class="mini"><tr><th>詞</th><th>「shot」指</th><th>哪條軸</th></tr>
+          <tr><td>one-shot / sequential</td><td>一張片內<strong>看幾輪</strong></td><td>Agent 軸（怎麼看）</td></tr>
+          <tr><td><strong>zero-shot</strong></td><td><strong>訓練樣本數</strong>（0＝不訓練）</td><td>訓練軸（policy 怎麼來）</td></tr>
+        </table>
+        <p>所以 zero-shot 的「zero」是<strong>零訓練</strong>、不是零步驟。它是 <strong>2D（2×2）</strong>不是一條線：</p>
+        <table class="mini">
+          <tr><th></th><th>one-shot（一次選 K）</th><th>sequential（多輪選 K）</th></tr>
+          <tr><td><strong>zero-shot</strong><br>不訓練・分數＝CONCH 文字相似度</td><td>不訓練・一次選<br><span class="win">新 baseline</span></td><td>不訓練・多輪選<br><span class="win">新 baseline</span></td></tr>
+          <tr><td><strong>continual</strong>＝我們<br>訓練 router + NSM</td><td>訓練・一次選（≈舊 selector）</td><td>訓練・多輪選<br><span class="win">★ 主打</span></td></tr>
+        </table>
+        <ul>
+          <li><strong>橫軸</strong>＝一張片內看幾輪（Agent 軸）；<strong>縱軸</strong>＝選法要不要訓練（訓練軸）。</li>
+          <li>N2 跑的是<strong>下排</strong>（continual）；zero-shot navigator＝把<strong>上排</strong>補上。</li>
+          <li><strong>ZeroSlide 本人</strong>＝不訓練＋<strong>連選都不選（吃全部 patch）</strong>＋只做分類 → 在這張表外面更上層（連 budget 都不要）。</li>
+        </ul>
+        <p><strong>同架構換引擎</strong>：Observation State / budget / sequential / Gate / NSM 全不動，只換打分來源（router 分數 ↔ CONCH 文字相似度）。<strong>不重寫</strong>，加一個 policy_mode=zero_shot 分支（SPEC-07）。<strong>本身不訓練</strong>，只跑一次 inference 評估（esca Mac 即可）。</p>
+        <p><strong>defend 價值</strong>：把老師「為何不 zero-shot」「forgetting 是否 trivial」變成 ablation——continual &gt; zero-shot 就證明訓練+記憶值得；打平就誠實報 + 留強 baseline。</p>
+      </div>
+    </details>
+
+    <details class="qa purple" open>
+      <summary>★ 兩種遺忘 + 我們的 zero-shot 跟 ZeroSlide 哪裡一樣 + 誰才是 Agent</summary>
+      <div class="body">
+        <p><strong>哪裡一樣</strong>：工具一樣（frozen FM 文字對齊、零訓練），工作不同——ZeroSlide 拿來<strong>分類</strong>（看全部、不選），我們拿來<strong>選 patch（看哪）</strong>。我們＝把它的招從分類搬到 navigation。</p>
+        <p><strong>真的有兩種遺忘</strong>（住在會被訓練的模組裡）：</p>
+        <table class="mini"><tr><th>遺忘</th><th>住哪</th><th>我們的狀態</th></tr>
+          <tr><td>classification forgetting</td><td>分類頭</td><td><span class="win">不存在</span>（backbone 凍結）</td></tr>
+          <tr><td>navigation forgetting</td><td>router</td><td><span class="bad">唯一存在</span>（只有 router 訓練）</td></tr>
+        </table>
+        <p><strong>ZeroSlide 對抗哪種？</strong> classification forgetting，解法是「根本不訓練→零遺忘」。它<strong>完全沒碰 navigation</strong>（看全部、不選）→ 「他們解了 navigation 遺忘、我們輸給他們」<strong>不會發生，因為它沒有 navigator</strong>。</p>
+        <p><strong>真正對手＝我們自己的 zero-shot navigator</strong>。輸了（打平/更好）也不是末日：等於說「navigation 也不用訓練」，是延伸 ZeroSlide 的可發表發現。<strong>即使打平，仍有：</strong></p>
+        <ul>
+          <li>① 可吸收未來訊號（gaze/RLHF/reward）——zero-shot 寫死學不動，有天花板。</li>
+          <li>② 真正序列/狀態決策——zero-shot 偏 one-shot。</li>
+          <li>③ 換 backbone 穩健——zero-shot 全靠 FM 文字對齊強。</li>
+          <li>④ CL 框架本身（NSM/gate/序列觀察）可重用。</li>
+        </ul>
+        <p><strong>誰適合 Agent？continual（可訓練）那邊。</strong> zero-shot＝固定分數＝反射，好 baseline；continual＝可學 policy＝能被 reward 優化、會成長＝Agent 本體。</p>
+        <p class="win">定位：zero-shot 是「反射式」強 baseline；continual 是「可學的 agent」，是唯一能吸收回饋、真序列決策、不挑 backbone 的路。</p>
+      </div>
+    </details>
+
+    <details class="qa purple">
+      <summary>由此新增的關鍵 baseline：zero-shot navigation</summary>
+      <div class="body">
+        <p>ZeroSlide 催生一個必須做的對照組：</p>
+        <ul>
+          <li><strong>zero-shot navigator</strong>：不訓練 router，直接用 frozen backbone 的 CONCH patch-text 相似度選 K 個 patch。天生零遺忘。</li>
+          <li><strong>continual navigator（我們）</strong>：trainable router + NSM。</li>
+        </ul>
+        <p><strong>研究問題定版</strong>：<em>Is zero-shot navigation enough, or do we need continual navigation learning?</em> 我們 &gt; zero-shot navigator → 證明 learned+記憶的 navigation 有價值；打平 → 誠實報，仍貢獻「navigation 維度的 CL 分析 + 一個強 baseline」。</p>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">來源：<code>docs/wiki/07_what-we-do-deep-dive.md</code>、<code>08_N3-analysis-defense.md</code>、<code>09_zeroslide-and-rebuttals.md</code>（持續添增）。</div>
+</footer>
+
+</body>
+</html>

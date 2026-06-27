@@ -41,25 +41,37 @@ from train_qpmil_runner import load_qpmil_cfg, build_loaders, TASK_ORDERS
 from train_router_v0 import train_router_one_task, iter_slides
 
 
-def _make_agent(backbone, bank, *, step_size, redundancy, device):
+def _make_agent(backbone, bank, *, step_size, redundancy, device, policy_mode="router"):
     """建一個 agent；mode 由 ObserveConfig 控制（per-budget 重設 budget）。"""
     cfg = ObserveConfig(budget=64, step_size=step_size, redundancy_weight=redundancy)
     return ContinualSequentialNavigationAgent(backbone, bank, ContextGate("oracle"),
-                                              cfg, device=device)
+                                              cfg, device=device, policy_mode=policy_mode)
 
 
 @torch.no_grad()
 def eval_grid(backbone, nsm_bank, nonsm_bank, loader, device, eval_task,
-              budgets, step_size, redundancy, max_eval):
-    """回傳 4 個 mode 的 {budget: acc}：{nsm_seq, nsm_oneshot, nonsm_seq, nonsm_oneshot}。"""
+              budgets, step_size, redundancy, max_eval, policy_mode="router"):
+    """回傳各 mode 的 {budget: acc}。
+
+    policy_mode="router"：{nsm_seq, nsm_oneshot, nonsm_seq, nonsm_oneshot}（訓練式 + NSM 對照）。
+    policy_mode="zero_shot"：{zeroshot_seq, zeroshot_oneshot}（不訓練、frozen-FM 文字相似度，
+        無 NSM/nonsm 之分，bank 不被使用）。
+    """
     shift = 2 * eval_task
-    modes = {
-        "nsm_seq":      (nsm_bank,   step_size, redundancy),
-        "nsm_oneshot":  (nsm_bank,   10 ** 9,   0.0),
-        "nonsm_seq":    (nonsm_bank, step_size, redundancy),
-        "nonsm_oneshot": (nonsm_bank, 10 ** 9,  0.0),
-    }
-    agents = {m: _make_agent(backbone, bank, step_size=ss, redundancy=rw, device=device)
+    if policy_mode == "zero_shot":
+        modes = {
+            "zeroshot_seq":     (nsm_bank, step_size, redundancy),
+            "zeroshot_oneshot": (nsm_bank, 10 ** 9,   0.0),
+        }
+    else:
+        modes = {
+            "nsm_seq":      (nsm_bank,   step_size, redundancy),
+            "nsm_oneshot":  (nsm_bank,   10 ** 9,   0.0),
+            "nonsm_seq":    (nonsm_bank, step_size, redundancy),
+            "nonsm_oneshot": (nonsm_bank, 10 ** 9,  0.0),
+        }
+    agents = {m: _make_agent(backbone, bank, step_size=ss, redundancy=rw, device=device,
+                             policy_mode=policy_mode)
               for m, (bank, ss, rw) in modes.items()}
 
     correct = {m: {("All" if k == 0 else k): 0 for k in budgets} for m in modes}
@@ -94,6 +106,8 @@ def main():
     ap.add_argument("--redundancy", type=float, default=0.5, help="sequential 冗餘懲罰權重")
     ap.add_argument("--eval-task", type=int, default=0,
                     help="要評估的（舊）任務 index；oracle gate 用此 id 選 skill")
+    ap.add_argument("--policy-mode", choices=["router", "zero_shot"], default="router",
+                    help="router=訓練式 NSM skill；zero_shot=不訓練、frozen-FM 文字相似度 (SPEC-07)")
     ap.add_argument("--lr", type=float, default=5e-4)
     ap.add_argument("--max-train", type=int, default=0)
     ap.add_argument("--max-eval", type=int, default=0)
@@ -124,40 +138,51 @@ def main():
 
     loaders = build_loaders(cfg, order, args.fold)
 
-    # 逐任務訓練單一 router：snapshot -> NSM；最終狀態 -> 無 NSM policy
-    nsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)
-    router = MicroRouterV0(feat_dim=512, hidden=256).to(device)
-    for t, ds in enumerate(order):
-        print(f"\n[seqobs] train task {t+1}/{len(order)} {ds}", flush=True)
-        train_router_one_task(router, backbone, loaders[ds]["train"],
-                              device, t, args.epochs, args.top_k,
-                              args.lr, args.max_train, ewc=None)
-        nsm_bank.add_skill(t, copy.deepcopy(router.state_dict()))
+    if args.policy_mode == "zero_shot":
+        # SPEC-07：不訓練任何 router；navigation 分數來自 frozen FM 的 patch-text 相似度。
+        print("[seqobs] policy_mode=zero_shot — 跳過 router 訓練（frozen-FM navigation）", flush=True)
+        nsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)  # 不被使用，僅佔位
+        nonsm_bank = nsm_bank
+    else:
+        # 逐任務訓練單一 router：snapshot -> NSM；最終狀態 -> 無 NSM policy
+        nsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)
+        router = MicroRouterV0(feat_dim=512, hidden=256).to(device)
+        for t, ds in enumerate(order):
+            print(f"\n[seqobs] train task {t+1}/{len(order)} {ds}", flush=True)
+            train_router_one_task(router, backbone, loaders[ds]["train"],
+                                  device, t, args.epochs, args.top_k,
+                                  args.lr, args.max_train, ewc=None)
+            nsm_bank.add_skill(t, copy.deepcopy(router.state_dict()))
 
-    # 無 NSM：用「學完所有任務後的最終 router」對舊任務導覽（預期會忘）
-    nonsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)
-    nonsm_bank.add_skill(args.eval_task, copy.deepcopy(router.state_dict()))
+        # 無 NSM：用「學完所有任務後的最終 router」對舊任務導覽（預期會忘）
+        nonsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)
+        nonsm_bank.add_skill(args.eval_task, copy.deepcopy(router.state_dict()))
 
-    if args.skill_bank_out:
-        os.makedirs(os.path.dirname(args.skill_bank_out) or ".", exist_ok=True)
-        nsm_bank.save(args.skill_bank_out)
-        print(f"[seqobs] saved skill bank -> {args.skill_bank_out} (tasks={nsm_bank.task_ids()})")
+        if args.skill_bank_out:
+            os.makedirs(os.path.dirname(args.skill_bank_out) or ".", exist_ok=True)
+            nsm_bank.save(args.skill_bank_out)
+            print(f"[seqobs] saved skill bank -> {args.skill_bank_out} (tasks={nsm_bank.task_ids()})")
 
     eval_ds = order[args.eval_task]
-    print(f"\n[seqobs] eval grid on {eval_ds} test (task_index={args.eval_task})", flush=True)
+    print(f"\n[seqobs] eval grid on {eval_ds} test (task_index={args.eval_task}) "
+          f"policy={args.policy_mode}", flush=True)
     results, n_slides = eval_grid(backbone, nsm_bank, nonsm_bank,
                                   loaders[eval_ds]["test"], device, args.eval_task,
-                                  budgets, args.step_size, args.redundancy, args.max_eval)
+                                  budgets, args.step_size, args.redundancy, args.max_eval,
+                                  policy_mode=args.policy_mode)
     for m, d in results.items():
         print(f"[seqobs]   {m:>14}: {d}", flush=True)
 
     os.makedirs(args.out, exist_ok=True)
+    # zero_shot 結果加 policy 標記，避免覆蓋 router-mode 既有結果
+    tag = "" if args.policy_mode == "router" else "_policy-zeroshot"
     out_path = os.path.join(
-        args.out, f"seqobs_{args.order}_f{args.fold}_task{args.eval_task}.json")
+        args.out, f"seqobs_{args.order}_f{args.fold}_task{args.eval_task}{tag}.json")
     with open(out_path, "w") as f:
         json.dump({
             "order": args.order, "fold": args.fold, "eval_task": eval_ds,
             "task_index": args.eval_task, "gate": "oracle",
+            "policy_mode": args.policy_mode,
             "budgets": list(budgets), "step_size": args.step_size,
             "redundancy": args.redundancy, "n_eval_slides": n_slides,
             "results": results,

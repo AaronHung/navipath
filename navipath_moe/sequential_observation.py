@@ -24,7 +24,7 @@ from typing import Callable, Optional
 import torch
 import torch.nn.functional as F
 
-from .routers import MicroRouterV0, top_k_select
+from .routers import MicroRouterV0, summary_feats, top_k_select
 from .continual_agent import ContextGate, NavigationSkillBank
 
 
@@ -175,12 +175,16 @@ class ContinualSequentialNavigationAgent:
 
     def __init__(self, backbone, skill_bank: NavigationSkillBank,
                  gate: Optional[ContextGate] = None,
-                 config: Optional[ObserveConfig] = None, device=None):
+                 config: Optional[ObserveConfig] = None, device=None,
+                 policy_mode: str = "router"):
+        if policy_mode not in ("router", "zero_shot"):
+            raise ValueError(f"unknown policy_mode: {policy_mode}")
         self.backbone = backbone
         self.skill_bank = skill_bank
         self.gate = gate or ContextGate("oracle")
         self.observer = SequentialBudgetedObserver(config)
         self.device = device
+        self.policy_mode = policy_mode  # "router"=trained NSM skill; "zero_shot"=frozen-FM text sim
         self._router_cache: dict[int, MicroRouterV0] = {}
 
     def _router_for(self, task_id: int) -> MicroRouterV0:
@@ -190,11 +194,16 @@ class ContinualSequentialNavigationAgent:
 
     @torch.no_grad()
     def _base_score(self, Z: torch.Tensor, task_id: int) -> torch.Tensor:
-        router = self._router_for(task_id)
         f_txt = self.backbone.class_text_features()
         F_p = self.backbone.prototype_features()
         if self.device is not None:
             f_txt, F_p = f_txt.to(self.device), F_p.to(self.device)
+        if self.policy_mode == "zero_shot":
+            # SPEC-07: zero-shot navigation — 不訓練、不查 skill bank，
+            # 直接用 frozen FM 的 patch-text 相似度 (ZeroSlide 精神搬到 navigation)。
+            _, sim_txt_max = summary_feats(Z, f_txt, F_p)
+            return sim_txt_max
+        router = self._router_for(task_id)
         score, _ = router(Z, f_txt, F_p)
         return score
 

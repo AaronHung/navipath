@@ -14,6 +14,7 @@
     <a class="link" href="index.html">Storyline</a>
     <a class="link" href="architecture.html">架構</a>
     <a class="link" href="glossary.html">詞彙</a>
+    <a class="link" href="notes.html">答辯筆記</a>
     <a class="link" href="board.html">進度看板</a>
     <a class="link" href="schedule.html">日程</a>
     <a class="link active" href="sop.html">SOP</a>
@@ -56,11 +57,11 @@
       </div>
       <div class="tl">
         <div class="date">N2 · 6/29–6/30 · RunPod</div>
-        <div class="what">第一批實驗：Budget 效率 <code>acc@K vs acc@All</code>；CL 保留 old-task <code>acc@K</code> 有/無 NSM；Agentic sequential vs one-shot。交付：<code>outputs/seqobs_*.json/.log</code>（不覆蓋）→ push。</div>
+        <div class="what">第一批實驗：Budget 效率 <code>acc@K vs acc@All</code>；CL 保留 old-task <code>acc@K</code> 有/無 NSM；Agentic sequential vs one-shot；<strong>zero-shot navigator baseline</strong>（<code>--policy-mode zero_shot</code>，不訓練、很快）。交付：<code>outputs/seqobs_*.json/.log</code>（router 與 <code>*_policy-zeroshot.json</code> 並存，不覆蓋）→ push。</div>
       </div>
       <div class="tl">
         <div class="date">N3 · 7/1 · Mac</div>
-        <div class="what">pull → 用實際 json 產結果表 + 圖（budget 曲線、有/無 NSM 對比）。缺格標 <code>[MISSING]</code>，不捏造。</div>
+        <div class="what">pull → 用實際 json 產結果表 + 圖（budget 曲線、有/無 NSM 對比、<strong>continual vs zero-shot navigator</strong> 對比表）。缺格標 <code>[MISSING]</code>，不捏造。</div>
       </div>
       <div class="tl">
         <div class="date">N4 · 7/2 · 凍結 pilot</div>
@@ -72,7 +73,7 @@
       </div>
       <div class="tl dim">
         <div class="date">N6 · 7/3–7/14 · 論文初稿</div>
-        <div class="what">problem framing（不以 QPMIL 開頭）+ method（CNL/NSM/序列）+ experiments（budget 效率 + CL 保留 + EWC baseline + sequential vs one-shot ablation）。</div>
+        <div class="what">problem framing（不以 QPMIL 開頭）+ method（CNL/NSM/序列）+ experiments（budget 效率 + CL 保留 + EWC baseline + sequential vs one-shot + <strong>zero-shot vs continual navigator</strong>，呼應 ZeroSlide）。</div>
       </div>
       <div class="tl dim">
         <div class="date">N7 · 7/15 · 老師 review</div>
