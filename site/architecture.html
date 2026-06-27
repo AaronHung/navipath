@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NaviPath-CL — 架構</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <span class="brand">NaviPath<span class="cl">-CL</span></span>
+    <a class="link" href="index.html">Storyline</a>
+    <a class="link active" href="architecture.html">架構</a>
+    <a class="link" href="glossary.html">詞彙</a>
+    <a class="link" href="board.html">進度看板</a>
+    <a class="link" href="schedule.html">日程</a>
+    <a class="link" href="sop.html">SOP</a>
+  </div>
+</nav>
+
+<header class="hero compact">
+  <div class="wrap">
+    <div class="kicker">架構 · Generalized CNL</div>
+    <h1 class="title sm">NaviPath-CL: A Continual Navigation Layer<br>for Agentic WSI Diagnosis</h1>
+    <p class="subtitle">通用、backbone-agnostic 的導覽層：在 frozen 診斷 backbone 之上，做 budgeted、序列、可持續學習的 WSI 觀察。QPMIL-VL 只是 Phase-0 的一個 backbone 實例。</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">01</span>架構總圖</h2>
+    <p class="sec-sub">藍＝frozen backbone；綠＝CNL（我們的貢獻）；紫＝CL 記憶；虛線＝future work。</p>
+    <figure class="fig">
+      <img src="figs/arch_navipath_cl.svg" alt="NaviPath-CL generalized architecture">
+      <figcaption><b>Fig. 1.</b> NaviPath-CL generalized architecture（整體圖）。Agent＝Observation State + Navigation Policy + Budgeted Sequential Observation（多步、累積證據、輸出 Navigation Trace）；CL＝Context Gate + Navigation Skill Memory + CL Update（跨任務流不忘）。Source: <code>site/figs/arch_navipath_cl.svg</code>（vector，可轉 PDF）。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">02</span>細部技術框架</h2>
+    <p class="sec-sub">三層：CNL（我們的貢獻）→ Backbone Interface（抽象介面）→ QPMIL-VL（本次 instance）；future backbone 經同一介面 drop-in。來源：<code>STORYLINE.md</code> §6。</p>
+    <figure class="fig">
+      <img src="figs/arch_navipath_cl_detail.svg" alt="NaviPath-CL detailed technical framework">
+      <figcaption><b>Fig. 2.</b> 細部技術框架。CNL：Observation State → Context Gate → NSM → Budgeted Navigation Policy π，CL Update 維護記憶；Backbone Interface＝encode / predict / task_query 三個抽象呼叫；本次 backbone instance＝QPMIL-VL（frozen CONCH + prototype pool + CFE text classifier）。Source: <code>site/figs/arch_navipath_cl_detail.svg</code>。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">03</span>Agent 在哪、CL 在哪</h2>
+    <div class="grid2">
+      <div class="namecard">
+        <div class="role">AGENT（怎麼看）</div>
+        <div class="name" style="font-size:16px">Observation State + Navigation Policy + Budgeted Sequential Observation</div>
+        <p class="sec-sub" style="margin:8px 0 0">有限 budget 下，依累積證據多步決定「下一步看哪」，輸出可解釋 Navigation Trace。</p>
+      </div>
+      <div class="namecard">
+        <div class="role">CL（怎麼不忘）</div>
+        <div class="name" style="font-size:16px">Context Gate + Navigation Skill Memory + CL Update</div>
+        <p class="sec-sub" style="margin:8px 0 0">面對任務流，navigation 技能被累積 / 路由 / 更新；舊任務「該看哪」不退化。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">04</span>模組對應（圖中模組 → 目前對應 / 完成階段）</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>圖中模組</th><th>目前對應</th><th>Phase 1（7/20）</th></tr></thead>
+        <tbody>
+          <tr><td>Feature Interface</td><td>precomputed CONCH features</td><td><span class="pill done">做</span></td></tr>
+          <tr><td>Frozen Diagnostic Backbone</td><td>QPMIL-VL（一個 instance）</td><td><span class="pill done">做（凍結）</span></td></tr>
+          <tr><td>Observation State</td><td>累積證據狀態</td><td><span class="pill done">做</span></td></tr>
+          <tr><td>Navigation Policy</td><td>原 router，升級為序列 policy</td><td><span class="pill done">做</span></td></tr>
+          <tr><td>Budgeted Sequential Observation</td><td>多步 Top-K 觀察</td><td><span class="pill done">做（新肉）</span></td></tr>
+          <tr><td>Navigation Skill Memory (NSM)</td><td>per-task skill bank</td><td><span class="pill done">做</span></td></tr>
+          <tr><td>Context / Task Gate</td><td>oracle</td><td><span class="pill done">做</span> · task-free <span class="pill wip">future</span></td></tr>
+          <tr><td>CL Update</td><td>add / freeze</td><td><span class="pill done">做</span> · replay/consol <span class="pill wip">future</span></td></tr>
+          <tr><td>Navigation Trace</td><td>where-to-look 輸出</td><td><span class="pill done">做</span></td></tr>
+          <tr><td>Feature Replay Memory</td><td>—</td><td><span class="pill wip">future</span></td></tr>
+          <tr><td>Reward / Preference Model</td><td>—</td><td><span class="pill wip">future</span></td></tr>
+          <tr><td>North Star signals（軌跡/zoom/RLHF）</td><td>—</td><td><span class="pill wip">future</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">05</span>歸因（老師：贏了憑什麼是你的機制？）</h2>
+    <div class="note warn">
+      <h4>因果隔離</h4>
+      <ul>
+        <li>全程<strong>凍結同一個 QPMIL backbone</strong>（含它自己的 CL），所有對照組一致。</li>
+        <li>只變動我們的 navigation 層：有/無 NSM、序列/單步、State 組成。</li>
+        <li>⇒ 任何效能差異<strong>只能歸因於我們的 navigation 記憶</strong>，與 QPMIL 分類器 CL 無關。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">06</span>通用性邊界：介面契約（reviewer 會問）</h2>
+    <p class="sec-sub">「通用 module」＝我們的貢獻本體（CNL）。它的通用性<strong>由介面契約界定</strong>：backbone 可換，但要滿足我們 module 需要的 input。版本化記錄見 <code>docs/wiki/05</code>。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>backbone 必須提供</th><th>為什麼我們需要</th></tr></thead>
+        <tbody>
+          <tr><td><b>R1</b> per-patch features <code>encode(WSI)→Z</code></td><td>State/Policy 以 patch 為決策單位，不能只給單一 slide embedding</td></tr>
+          <tr><td><b>R2</b> subset-defined prediction <code>predict(S)→logits</code>（permutation-invariant）</td><td>我們做 budgeted 子集觀察；預測必須對任意子集穩定</td></tr>
+          <tr><td><b>R3</b> per-patch relevance / confidence 訊號</td><td>供 Observation State 累積證據、驅動序列決策</td></tr>
+          <tr><td><b>O1</b> <code>task_query(WSI)→q</code>（optional）</td><td>task-free Context Gate（future）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note lock" style="margin-top:16px">
+      <h4>本版硬邊界（v0）</h4>
+      <ul>
+        <li>內部無 transformer、backbone frozen → <strong>預測與全域 self-attention 綁死</strong>的 backbone 此版收不進來（無法 clean 子集化）。</li>
+        <li>✅ in-envelope：prototype/prompt-based（QPMIL）· replay-based · regularization-based。</li>
+        <li>⚠️ 邊界：attention-based MIL（ABMIL/CLAM）視子集穩定性逐一驗證。</li>
+        <li>未來 PEFT/LoRA → 契約放寬，相容範圍擴大（見 wiki 05 演進表）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    架構 · authoritative 定義見 <code>specs/decisions/ADR-0006-*.md</code>；設計 wiki 見 <code>docs/wiki/</code>（含 04 通用化/歸因、05 介面契約）。
+  </div>
+</footer>
+
+</body>
+</html>

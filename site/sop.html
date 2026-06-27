@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NaviPath-CL — SOP</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <span class="brand">NaviPath<span class="cl">-CL</span></span>
+    <a class="link" href="index.html">Storyline</a>
+    <a class="link" href="architecture.html">架構</a>
+    <a class="link" href="glossary.html">詞彙</a>
+    <a class="link" href="board.html">進度看板</a>
+    <a class="link" href="schedule.html">日程</a>
+    <a class="link active" href="sop.html">SOP</a>
+  </div>
+</nav>
+
+<header class="hero compact">
+  <div class="wrap">
+    <div class="kicker">SOP · Phase-0 · 6/27 → 7/20</div>
+    <h1 class="title sm">執行手順 N0 → N8</h1>
+    <p class="subtitle">老師 bottom line：在現有 WSI navigation agent 之上擴增 CL。7/3 報「agent + CL 架構（含圖）＋ 到 7/2 的實驗結果」。完整檔：<code>specs/01_sop_navipath-cl_phase0.md</code>。</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">00</span>鐵則</h2>
+    <div class="note lock">
+      <ul>
+        <li><strong>Mac 改 code + smoke；RunPod 跑實驗。</strong> 結果存 <code>outputs/</code>（進 git）、照命名規則、<strong>不覆蓋舊檔</strong>。</li>
+        <li>同步：RunPod <code>git add outputs/ &amp;&amp; commit &amp;&amp; push</code> → Mac <code>pull</code> → check。</li>
+        <li>歸因鐵則：<strong>全程凍結同一個 QPMIL backbone</strong>，只動 navigation 層。</li>
+        <li>每個里程碑更新 <code>specs/worklog/WORKLOG.md</code> 與 <code>outputs/PROGRESS.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">01</span>里程碑時間軸</h2>
+    <div class="timeline">
+      <div class="tl done">
+        <div class="date">N0 · 6/27 ✓ 架構鎖定</div>
+        <div class="what">通用架構圖 + 細部圖、wiki 04（通用化/歸因）、v0.4 檔歸檔 <code>legacy/</code>、README 重寫。交付：<code>architecture.html</code>、<code>docs/wiki/04</code>、本 SOP。</div>
+      </div>
+      <div class="tl">
+        <div class="date">N1 · 6/28–6/29 ★ 新肉</div>
+        <div class="what">實作 <strong>Sequential Budgeted Observation</strong>：ObservationState（累積證據）+ 多步 NavigationPolicy + frozen QPMIL + oracle Gate + per-task NSM + NavigationTrace。交付：<code>navipath_moe/sequential_observation.py</code> + smoke 過。</div>
+      </div>
+      <div class="tl">
+        <div class="date">N2 · 6/29–6/30 · RunPod</div>
+        <div class="what">第一批實驗：Budget 效率 <code>acc@K vs acc@All</code>；CL 保留 old-task <code>acc@K</code> 有/無 NSM；Agentic sequential vs one-shot。交付：<code>outputs/seqobs_*.json/.log</code>（不覆蓋）→ push。</div>
+      </div>
+      <div class="tl">
+        <div class="date">N3 · 7/1 · Mac</div>
+        <div class="what">pull → 用實際 json 產結果表 + 圖（budget 曲線、有/無 NSM 對比）。缺格標 <code>[MISSING]</code>，不捏造。</div>
+      </div>
+      <div class="tl">
+        <div class="date">N4 · 7/2 · 凍結 pilot</div>
+        <div class="what">凍結 7/2 數字；寫雙月報告稿 <code>reports/bimonthly_2026-07-03.md</code>（架構 + pilot + 計畫）。</div>
+      </div>
+      <div class="tl">
+        <div class="date">N5 · 7/3 · 報告</div>
+        <div class="what">通用架構（agent + CL）+ 到 7/2 實驗結果 + Phase-1/2 heads-up。不報舊 selector、不假裝論文完成。</div>
+      </div>
+      <div class="tl dim">
+        <div class="date">N6 · 7/3–7/14 · 論文初稿</div>
+        <div class="what">problem framing（不以 QPMIL 開頭）+ method（CNL/NSM/序列）+ experiments（budget 效率 + CL 保留 + EWC baseline + sequential vs one-shot ablation）。</div>
+      </div>
+      <div class="tl dim">
+        <div class="date">N7 · 7/15 · 老師 review</div>
+        <div class="what">交初稿、收回饋。</div>
+      </div>
+      <div class="tl dim">
+        <div class="date">N8 · 7/16–7/20 · 年度報告</div>
+        <div class="what">依回饋修論文；寫年度報告 <code>reports/annual_2026-07-20_outline.md</code> → 定稿。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">02</span>Aaron 要做的</h2>
+    <ul class="clean">
+      <li><span class="q">N2 / N3</span>：在 RunPod 貼我給的指令、跑完 push；Mac 端我來 pull + check。</li>
+      <li><span class="q">每個里程碑</span>：結果與圖會更新到 <code>site/</code>，你在看板檢視、回饋。</li>
+      <li><span class="q">圖 / 敘事</span>：要改隨時喊停（keep in loop）。</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">SOP authoritative 檔：<code>specs/01_sop_navipath-cl_phase0.md</code>。取代 <code>legacy/SOP_v0.4.md</code>。</div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1660 700" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Noto Sans CJK TC',sans-serif">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#444"/>
+    </marker>
+    <marker id="ah-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#15695a"/>
+    </marker>
+    <marker id="ah-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7a5bb0"/>
+    </marker>
+    <marker id="ah-grey" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a59f93"/>
+    </marker>
+    <style>
+      .t{font-size:14px;fill:#1b1b1a}
+      .b{font-size:15px;font-weight:700;fill:#1b1b1a}
+      .s{font-size:11.5px;fill:#5b5b55}
+      .lbl{font-size:13px;font-weight:700}
+      .tag{font-size:11px;font-style:italic;fill:#5b5b55}
+      .title{font-size:23px;font-weight:700;fill:#1b1b1a}
+      .sub{font-size:13.5px;fill:#5b5b55}
+      .edge{stroke:#444;stroke-width:1.6;fill:none}
+      .edge-teal{stroke:#15695a;stroke-width:1.8;fill:none}
+      .edge-purple{stroke:#7a5bb0;stroke-width:1.4;fill:none}
+      .edge-dash{stroke:#a59f93;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+      .edge-loop{stroke:#15695a;stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1660" height="700" fill="#ffffff"/>
+
+  <text x="830" y="38" text-anchor="middle" class="title">NaviPath-CL: A Continual Navigation Layer for Agentic WSI Diagnosis</text>
+  <text x="830" y="60" text-anchor="middle" class="sub">Continual learning of a budgeted, sequential WSI observation policy on top of a frozen diagnostic backbone</text>
+
+  <g transform="translate(1372,80)">
+    <rect x="0" y="0" width="252" height="96" rx="8" fill="#fbfbf9" stroke="#e6e4dd"/>
+    <rect x="14" y="14" width="15" height="15" rx="3" fill="#d6e8fb" stroke="#3a78c2"/><text x="38" y="26" class="s">frozen diagnostic backbone</text>
+    <rect x="14" y="36" width="15" height="15" rx="3" fill="#e3f0ec" stroke="#15695a"/><text x="38" y="48" class="s">CNL - our contribution</text>
+    <rect x="14" y="58" width="15" height="15" rx="3" fill="#ece7f7" stroke="#7a5bb0"/><text x="38" y="70" class="s">continual-learning memory</text>
+    <rect x="14" y="80" width="15" height="15" rx="3" fill="#f5f5f1" stroke="#a59f93" stroke-dasharray="4 3"/><text x="38" y="92" class="s">future work (North Star)</text>
+  </g>
+
+  <rect x="36" y="250" width="150" height="120" rx="10" fill="#ffffff" stroke="#51514c" stroke-width="1.6"/>
+  <text x="111" y="298" text-anchor="middle" class="b">Whole-Slide</text>
+  <text x="111" y="318" text-anchor="middle" class="b">Image</text>
+  <text x="111" y="340" text-anchor="middle" class="s">patch pool</text>
+
+  <rect x="214" y="250" width="178" height="120" rx="10" fill="#ffffff" stroke="#51514c" stroke-width="1.6"/>
+  <text x="303" y="296" text-anchor="middle" class="b">Feature Interface</text>
+  <text x="303" y="320" text-anchor="middle" class="s">CONCH / Pathology FM</text>
+  <text x="303" y="338" text-anchor="middle" class="s">multi-scale encoder</text>
+  <text x="303" y="356" text-anchor="middle" class="tag">patch features Z</text>
+
+  <line x1="186" y1="310" x2="214" y2="310" class="edge" marker-end="url(#ah)"/>
+
+  <path d="M392,290 C430,290 440,180 470,180" class="edge" marker-end="url(#ah)"/>
+  <line x1="392" y1="330" x2="432" y2="330" class="edge" marker-end="url(#ah)"/>
+
+  <rect x="560" y="110" width="330" height="118" rx="10" fill="#d6e8fb" stroke="#3a78c2" stroke-width="1.8"/>
+  <text x="725" y="146" text-anchor="middle" class="b" fill="#1b3a5c">Frozen Diagnostic Backbone</text>
+  <text x="725" y="168" text-anchor="middle" class="s">prompt / prototype / MIL / VLM reasoning</text>
+  <text x="725" y="192" text-anchor="middle" class="tag">CL family (pluggable): prototype/prompt-based, replay-based</text>
+  <text x="725" y="212" text-anchor="middle" class="tag">predict(selected subset) to slide logits</text>
+
+  <rect x="560" y="236" width="330" height="26" rx="6" fill="#eef6f3" stroke="#15695a" stroke-dasharray="5 3"/>
+  <text x="725" y="253" text-anchor="middle" class="tag" fill="#15695a">Phase-0 instance (paper example): QPMIL-VL + CONCH</text>
+
+  <rect x="1170" y="108" width="210" height="92" rx="10" fill="#ffffff" stroke="#51514c" stroke-width="1.6"/>
+  <text x="1275" y="146" text-anchor="middle" class="b">Slide-level Prediction</text>
+  <text x="1275" y="168" text-anchor="middle" class="s">diagnosis / score /</text>
+  <text x="1275" y="184" text-anchor="middle" class="s">report signal</text>
+  <line x1="890" y1="154" x2="1170" y2="154" class="edge" marker-end="url(#ah)"/>
+
+  <rect x="1170" y="222" width="210" height="92" rx="10" fill="#ffffff" stroke="#15695a" stroke-width="1.6"/>
+  <text x="1275" y="258" text-anchor="middle" class="b" fill="#15695a">Navigation Trace</text>
+  <text x="1275" y="280" text-anchor="middle" class="s">where-to-look,</text>
+  <text x="1275" y="296" text-anchor="middle" class="s">interpretable evidence</text>
+
+  <rect x="410" y="286" width="740" height="300" rx="14" fill="#f1f8f5" stroke="#15695a" stroke-width="2"/>
+  <text x="428" y="312" class="lbl" fill="#15695a">Continual Navigation Layer (CNL) - our contribution</text>
+
+  <rect x="430" y="332" width="188" height="104" rx="9" fill="#e3f0ec" stroke="#15695a" stroke-width="1.6"/>
+  <text x="524" y="360" text-anchor="middle" class="b">Observation State</text>
+  <text x="524" y="382" text-anchor="middle" class="s">seen-patch features</text>
+  <text x="524" y="398" text-anchor="middle" class="s">running proto/text sim</text>
+  <text x="524" y="414" text-anchor="middle" class="s">confidence, coverage</text>
+
+  <rect x="652" y="352" width="150" height="66" rx="9" fill="#e3f0ec" stroke="#15695a" stroke-width="1.6"/>
+  <text x="727" y="382" text-anchor="middle" class="b">Navigation</text>
+  <text x="727" y="402" text-anchor="middle" class="b">Policy</text>
+
+  <rect x="836" y="332" width="190" height="104" rx="9" fill="#e3f0ec" stroke="#15695a" stroke-width="1.6"/>
+  <text x="931" y="360" text-anchor="middle" class="b">Budgeted Sequential</text>
+  <text x="931" y="380" text-anchor="middle" class="b">Observation</text>
+  <text x="931" y="402" text-anchor="middle" class="s">Top-K patches /</text>
+  <text x="931" y="418" text-anchor="middle" class="s">regions / views</text>
+
+  <line x1="618" y1="385" x2="652" y2="385" class="edge-teal" marker-end="url(#ah-teal)"/>
+  <line x1="802" y1="385" x2="836" y2="385" class="edge-teal" marker-end="url(#ah-teal)"/>
+
+  <path d="M860,436 C760,470 620,470 540,438" class="edge-loop" marker-end="url(#ah-teal)"/>
+  <text x="700" y="466" text-anchor="middle" class="tag" fill="#15695a">round t to t+1 (accumulate evidence)</text>
+
+  <path d="M931,332 C931,290 820,250 770,228" class="edge-teal" marker-end="url(#ah-teal)"/>
+  <text x="955" y="300" class="tag" fill="#15695a">selected K patches</text>
+
+  <path d="M1026,384 C1100,384 1110,268 1170,268" class="edge-teal" marker-end="url(#ah-teal)"/>
+
+  <rect x="430" y="470" width="188" height="92" rx="9" fill="#ece7f7" stroke="#7a5bb0" stroke-width="1.6"/>
+  <text x="524" y="500" text-anchor="middle" class="b" fill="#3f2f63">Context / Task Gate</text>
+  <text x="524" y="522" text-anchor="middle" class="s">oracle now</text>
+  <text x="524" y="538" text-anchor="middle" class="s">task-free later</text>
+
+  <rect x="652" y="470" width="210" height="92" rx="9" fill="#ece7f7" stroke="#7a5bb0" stroke-width="1.6"/>
+  <text x="757" y="500" text-anchor="middle" class="b" fill="#3f2f63">Navigation Skill Memory</text>
+  <text x="757" y="520" text-anchor="middle" class="s">per-task skill bank</text>
+  <text x="757" y="538" text-anchor="middle" class="s">to adapter / LoRA</text>
+
+  <rect x="896" y="470" width="130" height="92" rx="9" fill="#ece7f7" stroke="#7a5bb0" stroke-width="1.6"/>
+  <text x="961" y="500" text-anchor="middle" class="b" fill="#3f2f63">CL Update</text>
+  <text x="961" y="520" text-anchor="middle" class="s">add, freeze</text>
+  <text x="961" y="538" text-anchor="middle" class="s">replay/consol.</text>
+
+  <path d="M524,470 C524,448 600,440 652,398" class="edge-purple" marker-end="url(#ah-purple)"/>
+  <line x1="757" y1="470" x2="745" y2="420" class="edge-purple" marker-end="url(#ah-purple)"/>
+  <line x1="896" y1="510" x2="862" y2="512" class="edge-purple" marker-end="url(#ah-purple)"/>
+
+  <rect x="1170" y="360" width="454" height="226" rx="12" fill="#fafaf7" stroke="#a59f93" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="1188" y="384" class="lbl" fill="#8a8275">Future work (North Star)</text>
+
+  <rect x="1186" y="398" width="210" height="58" rx="8" fill="#f5f5f1" stroke="#a59f93" stroke-dasharray="5 3"/>
+  <text x="1291" y="422" text-anchor="middle" class="t" fill="#5b5b55">Feature Replay Memory</text>
+  <text x="1291" y="440" text-anchor="middle" class="s">representative feature vectors</text>
+
+  <rect x="1408" y="398" width="200" height="58" rx="8" fill="#f5f5f1" stroke="#a59f93" stroke-dasharray="5 3"/>
+  <text x="1508" y="422" text-anchor="middle" class="t" fill="#5b5b55">Reward / Preference</text>
+  <text x="1508" y="440" text-anchor="middle" class="s">region match, order-aware</text>
+
+  <rect x="1186" y="468" width="422" height="58" rx="8" fill="#f5f5f1" stroke="#a59f93" stroke-dasharray="5 3"/>
+  <text x="1397" y="492" text-anchor="middle" class="t" fill="#5b5b55">North Star signals</text>
+  <text x="1397" y="510" text-anchor="middle" class="s">physician trajectory / multi-scale zoom / human feedback / RLHF</text>
+
+  <rect x="1186" y="538" width="422" height="36" rx="8" fill="#f5f5f1" stroke="#a59f93" stroke-dasharray="5 3"/>
+  <text x="1397" y="561" text-anchor="middle" class="s">task-free Context Gate / adapter-LoRA NSM / consolidation</text>
+
+  <path d="M1170,430 C1130,430 1120,470 1026,500" class="edge-dash" marker-end="url(#ah-grey)"/>
+
+  <rect x="36" y="612" width="1588" height="58" rx="10" fill="#f3f2ec" stroke="#d7d4cb"/>
+  <text x="830" y="638" text-anchor="middle" class="b">Continual task stream:  tasks t = 1 ... T</text>
+  <text x="830" y="658" text-anchor="middle" class="s">the navigation policy is learned sequentially across tasks - old-task "where-to-look" must not be forgotten (continual learning lives here)</text>
+</svg>

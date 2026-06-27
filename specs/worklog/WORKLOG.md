@@ -148,3 +148,33 @@ M3 三項交付狀態：
   2. RunPod：paper-order per-task/EWC 對稱補跑（SPEC-02 指令）。
   3. 7/3 對外簡報、7/15 老師 review、7/20 年度報告填實。
 - 未自動 git commit（依規矩等 Aaron 指示）。建議 commit 訊息：`feat(SDD): NaviPath-CL specs + continual agent + evidence/figures/report (M0–M7 skeleton)`。
+
+---
+
+## 2026-06-27（晚）N0 — 架構鎖定 + 大掃除（對齊老師 bottom line）
+
+老師定調：在現有 WSI navigation agent 之上擴增 CL；7/3 報 agent+CL 架構（含圖）+ 到 7/2 的實驗結果。
+
+- **新 SOP**：`specs/01_sop_navipath-cl_phase0.md`（N0–N8，取代 `legacy/SOP_v0.4.md`）。看板新增 `site/sop.html`（SOP Tab）。
+- **架構圖（vector SVG，可轉 PDF）**：
+  - 總圖 `site/figs/arch_navipath_cl.svg`（頂刊寬幅，frozen/CNL/CL-memory/future 四色）。
+  - 細部 `site/figs/arch_navipath_cl_detail.svg`（CNL → Backbone Interface → QPMIL instance，源自 STORYLINE §6）。
+  - 兩張皆掛上 `site/architecture.html`；`index.html#arch` 舊 `Fig1_arch.png`（被打槍那張）已換成新總圖。
+  - 修正：SVG 內 `…`/`—` 等標點造成 XML 破損 → 全改 ASCII，xml parse 驗證 OK。
+- **wiki 04**：`docs/wiki/04_generalization-and-attribution.md`（兩條軸：backbone CL 家族 vs 我們的 CNL/NSM；歸因＝凍結同一 backbone 只動 navigation 層）。
+- **README 重寫**；14 個舊/v0.4 MD 歸檔 `legacy/`（保留 STORYLINE/COLLAB_PLAYBOOK/SESSION_CONTEXT/RUNPOD_*）。
+- **下一步 N1**：實作 `navipath_moe/sequential_observation.py`（Observation State + 多步 budgeted observation）。
+
+---
+
+## 2026-06-27（晚）N1 — Sequential Budgeted Observation（Mac，code 完成）
+
+- 新增 `navipath_moe/sequential_observation.py`：
+  - `ObservationState`：累積 seen trace / 聚合特徵 / coverage / backbone 信心（Agent 短期記憶）。
+  - `SequentialBudgetedObserver`：多輪、每輪 top-k；用 redundancy penalty（與已看區域相似度）讓「下一步看哪」取決於已看到的 → 真正序列決策；可信心達標早停。純函式、可測，不依賴 backbone 內部。
+  - `ContinualSequentialNavigationAgent`：frozen backbone + NSM(per-task skill) + oracle Gate + 序列觀察；產出 trace。重用 `routers.py` / `continual_agent.py` 零件，不重造。
+  - **one-shot 模式**（redundancy_weight=0 且 step_size>=budget）退化成舊 Top-K → 即 N2 的 sequential vs one-shot ablation。
+- `__init__.py` 匯出新類別。
+- 新增 `tests/test_sequential_observation.py`：6 個 smoke（budget 上限、trace 順序一致、one-shot==Top-K、seq≠one-shot、早停、agent e2e）。
+- 驗證：`ruff check` 乾淨；`PYTHONPATH=. python tests/test_sequential_observation.py` → **6/6 PASS**（CPU、合成輸入，未碰 canonical outputs）。
+- **下一步 N2（RunPod）**：掛 frozen QPMIL backbone + 真資料，跑 acc@K vs acc@All、有/無 NSM old-task 保留、sequential vs one-shot。

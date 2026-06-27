@@ -11,6 +11,10 @@ from .model import NaviPathMoE
 from .continual_agent import (
     NavigationSkillBank, ContextGate, ContinualWSINavigationAgent,
 )
+from .sequential_observation import (
+    ObserveConfig, ObservationState, ObservationResult,
+    SequentialBudgetedObserver, ContinualSequentialNavigationAgent,
+)
 
 __all__ = [
     "get_device", "setup_mps",
@@ -20,4 +24,6 @@ __all__ = [
     "l_sem", "l_balance", "l_route", "total_loss",
     "NaviPathMoE",
     "NavigationSkillBank", "ContextGate", "ContinualWSINavigationAgent",
+    "ObserveConfig", "ObservationState", "ObservationResult",
+    "SequentialBudgetedObserver", "ContinualSequentialNavigationAgent",
 ]

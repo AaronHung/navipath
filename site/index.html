@@ -12,8 +12,11 @@
   <div class="inner">
     <span class="brand">NaviPath<span class="cl">-CL</span></span>
     <a class="link active" href="index.html">Storyline</a>
+    <a class="link" href="architecture.html">架構</a>
+    <a class="link" href="glossary.html">詞彙</a>
     <a class="link" href="board.html">進度看板</a>
     <a class="link" href="schedule.html">日程</a>
+    <a class="link" href="sop.html">SOP</a>
   </div>
 </nav>
 
@@ -80,7 +83,7 @@
       <li><span class="q">新問題：</span>有限 observation budget 下，agent 學新癌種後，還記不記得舊癌種「要看哪裡」？</li>
     </ul>
     <figure class="fig">
-      <img src="../outputs/figs/Fig_problem.png" alt="Problem setting figure">
+      <img src="figs/Fig_problem.png" alt="Problem setting figure">
       <figcaption><b>Fig.&nbsp;Problem.</b> Budgeted observation 下的 navigation-policy forgetting 問題示意。Source: <code>outputs/figs/Fig_problem.png</code>。</figcaption>
     </figure>
   </div>
@@ -140,7 +143,7 @@
       </table>
     </div>
     <figure class="fig">
-      <img src="../outputs/figs/Fig_mechanism.png" alt="Mechanism comparison figure">
+      <img src="figs/Fig_mechanism.png" alt="Mechanism comparison figure">
       <figcaption><b>Fig.&nbsp;Mechanism.</b> 各 continual mechanism 在 old-task navigation 上的對比（shared / EWC 不足，modular skill memory 恢復）。Source: <code>outputs/figs/Fig_mechanism.png</code>。</figcaption>
     </figure>
     <p style="font-size:13.5px;color:var(--muted);margin-top:14px;">措辭紀律：shared / EWC / per-task 可講得確定；consolidation / parameter merging <strong>只講 ongoing，不 claim solved</strong>。</p>
@@ -166,10 +169,10 @@
     </div>
 
     <figure class="fig">
-      <img src="../outputs/figs/Fig1_arch.png" alt="Architecture figure">
-      <figcaption><b>Fig.&nbsp;1 (Architecture).</b> backbone-agnostic CNL：Backbone Interface（encode / predict / task_query）＋ NSM ＋ Context Gate ＋ CL Update；本次 backbone = QPMIL-VL（frozen CONCH + prototype pool + CFE text classifier）。Source: <code>outputs/figs/Fig1_arch.png</code>。</figcaption>
+      <img src="figs/arch_navipath_cl.svg" alt="NaviPath-CL architecture">
+      <figcaption><b>Fig.&nbsp;1 (Architecture).</b> NaviPath-CL generalized architecture：frozen diagnostic backbone（藍）＋ Continual Navigation Layer（綠，我們的貢獻）＋ CL memory（紫）＋ future（虛線）。完整總圖／細部圖見 <a href="architecture.html">架構頁</a>。Source: <code>site/figs/arch_navipath_cl.svg</code>。</figcaption>
     </figure>
-    <p style="font-size:13.5px;color:var(--muted);margin-top:16px;">模組對應 North Star：Navigation Policy ↔ 導覽 agent action policy；NSM / CL Update ↔ adaptive learning + memory；Context Gate ↔ orchestrator。Future backbones（replay-based · regularization-based）可透過同一 interface 接入。</p>
+    <p style="font-size:13.5px;color:var(--muted);margin-top:16px;">Agent＝Observation State + Navigation Policy + Budgeted Sequential Observation；CL＝Context Gate + NSM + CL Update。Future backbones（replay-based · regularization-based）可透過同一 interface 接入。詳見 <a href="architecture.html">架構頁</a>。</p>
   </div>
 </section>
 
@@ -200,7 +203,7 @@
       </div>
     </div>
     <figure class="fig">
-      <img src="../outputs/figs/Fig_budget_curve.png" alt="Budget curve figure">
+      <img src="figs/Fig_budget_curve.png" alt="Budget curve figure">
       <figcaption><b>Fig.&nbsp;Budget.</b> Observation budget vs. navigation accuracy；budget 視為 agentic observation constraint（非主打 compute-saving）。Source: <code>outputs/figs/Fig_budget_curve.png</code>。</figcaption>
     </figure>
   </div>
@@ -228,7 +231,7 @@
       </div>
     </div>
     <figure class="fig">
-      <img src="../outputs/figs/Fig_roadmap.png" alt="Roadmap figure">
+      <img src="figs/Fig_roadmap.png" alt="Roadmap figure">
       <figcaption><b>Fig.&nbsp;Roadmap.</b> Phase 0 → 1 → 2 對齊 North Star 的長期路線。Source: <code>outputs/figs/Fig_roadmap.png</code>。</figcaption>
     </figure>
   </div>

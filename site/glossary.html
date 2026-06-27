@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NaviPath-CL — 詞彙表</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .gloss{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:760px){.gloss{grid-template-columns:1fr;}}
+  .term{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--surface);border-left:4px solid var(--line);}
+  .term.blue{border-left-color:#3a78c2;}
+  .term.teal{border-left-color:#15695a;}
+  .term.purple{border-left-color:#7a5bb0;}
+  .term.grey{border-left-color:#a59f93;}
+  .term .h{font-weight:700;font-size:15px;margin-bottom:5px;}
+  .term .h .en{color:var(--muted);font-weight:400;font-size:13px;}
+  .term p{margin:0;font-size:13.5px;color:#34332e;line-height:1.65;}
+  .lanehead{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin:6px 0 2px;}
+  .lanehead.blue{color:#3a78c2;} .lanehead.teal{color:#15695a;}
+  .lanehead.purple{color:#7a5bb0;} .lanehead.grey{color:#8a8275;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <span class="brand">NaviPath<span class="cl">-CL</span></span>
+    <a class="link" href="index.html">Storyline</a>
+    <a class="link" href="architecture.html">架構</a>
+    <a class="link active" href="glossary.html">詞彙</a>
+    <a class="link" href="board.html">進度看板</a>
+    <a class="link" href="schedule.html">日程</a>
+    <a class="link" href="sop.html">SOP</a>
+  </div>
+</nav>
+
+<header class="hero compact">
+  <div class="wrap">
+    <div class="kicker">Glossary · 架構 block 白話</div>
+    <h1 class="title sm">架構圖每個 block 在說什麼</h1>
+    <p class="subtitle">被老師/reviewer 問時可直接查，也可當 rebuttal 彈藥。持續添增。來源：<code>docs/wiki/06_glossary.md</code>。顏色對應架構圖：藍＝frozen backbone、綠＝CNL（Agent）、紫＝CL 記憶、灰＝future。</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="lanehead blue">一、輸入與 backbone（藍）</div>
+    <div class="gloss">
+      <div class="term blue"><div class="h">Whole-Slide Image / Patch Pool</div><p>病理切片是 gigapixel 巨圖，切成上千個小方塊（patch）。這堆 patch ＝ patch pool。</p></div>
+      <div class="term blue"><div class="h">Feature Interface <span class="en">CONCH / Pathology FM</span></div><p>「翻譯官」：用預訓練模型把每個 patch 變成 512 維向量，讓 backbone 與 agent 都看得懂，不直接吃像素。</p></div>
+      <div class="term blue"><div class="h">Frozen Diagnostic Backbone</div><p>真正下診斷的模型（本次＝QPMIL-VL）。<strong>Frozen＝完全不訓練</strong>，只借它看 patch、出診斷。凍結是故意的→贏了才能歸因是「我們的 navigation」。</p></div>
+      <div class="term blue"><div class="h">Slide-level Prediction</div><p>backbone 看完我們挑的 patch 後，給整張片子的診斷（癌種／分數）。</p></div>
+    </div>
+
+    <div class="lanehead teal" style="margin-top:22px">二、CNL（綠）＝ Agent，怎麼看</div>
+    <div class="gloss">
+      <div class="term teal"><div class="h">Observation State <span class="en">觀察狀態</span></div><p>單張片子內的「當前筆記／短期記憶」：看過哪些 patch、像哪一類、backbone 多有把握、看了幾%。讓「下一步看哪」取決於已看到的→<strong>序列決策</strong>。</p></div>
+      <div class="term teal"><div class="h">Navigation Policy <span class="en">導覽策略</span></div><p>決策大腦：依 Observation State 幫每個未看 patch 打分，決定哪些值得看。</p></div>
+      <div class="term teal"><div class="h">Budgeted Sequential Observation</div><p><strong>Budgeted</strong>＝只准看 K 個 patch；<strong>Sequential</strong>＝分多輪看。流程：看一點→更新 state→再決定看哪→再看，直到用完 K。</p></div>
+      <div class="term teal"><div class="h">Navigation Trace <span class="en">導覽軌跡</span></div><p>agent 依序看了哪些地方的紀錄＝可解釋性產出；也是跟 QPMIL「一次吃全部」最大的差異。</p></div>
+    </div>
+
+    <div class="lanehead purple" style="margin-top:22px">三、CL 記憶（紫）＝ 怎麼不忘</div>
+    <div class="gloss">
+      <div class="term purple"><div class="h">Context / Task Gate <span class="en">情境/任務閘門</span></div><p>開關／路由器：看到新片子，決定<strong>這張要用 NSM 裡哪一套技能</strong>（像把病例分流到對的專科）。</p></div>
+      <div class="term purple"><div class="h">oracle <span class="en">理想答案來源</span></div><p>ML 裡 oracle＝「直接給正確答案的理想來源」，一種合理作弊，用來量<strong>最好情況（上界）</strong>。oracle gate＝我們直接告訴 Gate 這張是哪個癌種→一定挑對技能。先拿掉「分流分錯」這變數，純驗證記憶+技能有沒有用。未來 task-free＝不給答案、模型自己推。</p></div>
+      <div class="term purple"><div class="h">Navigation Skill Memory <span class="en">NSM</span></div><p><strong>跨任務長期記憶</strong>：學完一個癌種，把「看這種癌該怎麼看」的技能存進「技能銀行」。CL 的記憶體在此→<strong>忘記與恢復都發生在這裡</strong>。</p></div>
+      <div class="term purple"><div class="h">CL Update <span class="en">持續學習更新</span></div><p>管理 NSM 的規則：學新任務時新增技能、凍結舊技能、（未來）合併/重播，避免學新洗掉舊。</p></div>
+    </div>
+
+    <div class="note lock" style="margin-top:16px">分工一句話：<strong>Observation State＝單片內短期記憶（Agent）；NSM＝跨任務長期記憶（CL）；Gate＝決定這張片子拿哪套技能。</strong></div>
+
+    <div class="lanehead grey" style="margin-top:22px">四、Future work（灰，虛線框，這次不做）</div>
+    <div class="gloss">
+      <div class="term grey"><div class="h">Feature Replay Memory <span class="en">特徵重播記憶</span></div><p>未來存「代表性 patch 特徵向量」，學新任務時拿出來複習防遺忘。<strong>存特徵，跟 NSM 存「技能」不同。</strong></p></div>
+      <div class="term grey"><div class="h">Reward / Preference Model</div><p>未來有醫師資料時，評分「agent 看的順序好不好、有沒有看對地方」。</p></div>
+      <div class="term grey"><div class="h">North Star signals</div><p>長期願景訊號：醫師瀏覽軌跡、放大/移動動作、人類回饋（RLHF）。現在沒資料→列未來。</p></div>
+      <div class="term grey"><div class="h">task-free Gate</div><p>未來版的 Gate：不靠 oracle，模型自己從片子推測任務是哪一類。</p></div>
+    </div>
+
+    <div class="lanehead" style="margin-top:22px;color:var(--muted)">五、底部標籤 與 介面契約</div>
+    <div class="gloss">
+      <div class="term"><div class="h">Continual task stream <span class="en">t = 1 … T</span></div><p>任務一個接一個來（癌種 1→2→3…），不是一次全給。＝持續學習的舞台：學後面會不會忘前面。</p></div>
+      <div class="term"><div class="h">Phase-0 instance: QPMIL-VL + CONCH</div><p>提醒：整套是通用框架，<strong>QPMIL 只是這次插進 backbone 槽的一個例子</strong>，非主角。</p></div>
+      <div class="term"><div class="h">encode / predict / task_query</div><p>對 backbone 的<strong>介面契約</strong>：encode(WSI)→每 patch 特徵；predict(subset)→只給一部分 patch 也能出診斷；task_query→（選用）推測任務。詳見 <a href="architecture.html">架構頁 §06</a>。</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">詞彙表來源：<code>docs/wiki/06_glossary.md</code>（持續添增）。架構圖見 <a href="architecture.html">架構頁</a>。</div>
+</footer>
+
+</body>
+</html>
