@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NaviPath-CL — Storyline</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <span class="brand">NaviPath<span class="cl">-CL</span></span>
+    <a class="link active" href="index.html">Storyline</a>
+    <a class="link" href="board.html">進度看板</a>
+    <a class="link" href="schedule.html">日程</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Storyline · 拍板基調</div>
+    <h1 class="title">NaviPath-CL: A Continual Navigation Layer<br>for Agentic Whole-Slide Image Diagnosis</h1>
+    <p class="subtitle">WSI 持續學習不只是學「怎麼分類」，更是學「<strong style="color:var(--ink)">怎麼看</strong>」。在 budgeted / agentic 病理診斷下，navigation policy（導覽策略）本身也會 catastrophic forgetting（災難性遺忘）。</p>
+
+    <p class="lede">在取得醫師實際瀏覽軌跡與 RLHF 資料之前，我們把 WSI 導覽抽象為在預先算好的 CONCH 特徵上做 <strong>budgeted patch selection</strong>，並以 QPMIL-VL 作為 frozen 的 prompt/prototype-based 診斷 backbone。核心問題：<strong>哪一種 continual mechanism 適合這樣的 navigation policy？</strong></p>
+
+    <div class="badges">
+      <div class="badge alt">
+        <div class="h">老師 / North Star 內部</div>
+        <div class="b">NaviPath-CL 是 North Star（physician-like WSI navigation agent）的 <strong>Phase-0 CL 原型</strong>。</div>
+      </div>
+      <div class="badge">
+        <div class="h">Paper reviewer</div>
+        <div class="b">一個新的 WSI-CL 問題：<strong>continual learning of the observation policy under budgeted WSI inference</strong>。</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="naming">
+  <div class="wrap">
+    <h2><span class="sec-no">00</span>命名（固定用詞）</h2>
+    <p class="sec-sub">全文件、報告、論文一致使用，避免混用造成 reviewer 與老師理解落差。</p>
+    <div class="grid2">
+      <div class="namecard"><div class="role">整體方法</div><div class="name">NaviPath-CL</div></div>
+      <div class="namecard"><div class="role">貢獻層</div><div class="name">CNL<span class="full">Continual Navigation Layer</span></div></div>
+      <div class="namecard"><div class="role">核心模組</div><div class="name">NSM<span class="full">Navigation Skill Memory</span></div></div>
+      <div class="namecard"><div class="role">上位願景代稱</div><div class="name">North Star<span class="full">physician-like WSI navigation agent</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="twolang">
+  <div class="wrap">
+    <h2><span class="sec-no">01</span>兩套語言（最重要的紀律）</h2>
+    <p class="sec-sub">兩個 audience，兩套敘事，不可混用。論文講獨立的 scientific problem，不能讀起來像計畫 deliverable 的延伸。</p>
+    <div class="lang">
+      <div class="langcard">
+        <div class="who">Internal / North Star</div>
+        <h3>Phase-0 prototype</h3>
+        <p style="margin:0;color:var(--muted);font-size:14px;">Phase-0 prototype for a physician-like WSI navigation agent. North Star 是內部合理性來源，不在論文過度強調。</p>
+      </div>
+      <div class="langcard">
+        <div class="who">Paper framing</div>
+        <h3>Budgeted observation CL</h3>
+        <p style="margin:0;color:var(--muted);font-size:14px;">Continual learning for budgeted WSI observation policies——一個獨立、可被 review 的科學問題。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="wrap">
+    <h2><span class="sec-no">02</span>問題設定</h2>
+    <p class="sec-sub">既有 WSI-CL 只處理 classifier forgetting，沒人處理 navigation-policy forgetting。</p>
+    <ul class="clean">
+      <li>現行 patch-by-patch / encode-all 把運算花在非重要區域，且非關鍵區域特徵會干擾診斷；醫師行為是「低倍率找標的 → 高倍率細看」。</li>
+      <li>既有仿醫師方法未用醫師實際軌跡，靠弱監督 / 報告找區域，可能找錯目標或幻覺。</li>
+      <li><span class="q">新問題：</span>有限 observation budget 下，agent 學新癌種後，還記不記得舊癌種「要看哪裡」？</li>
+    </ul>
+    <figure class="fig">
+      <img src="../outputs/figs/Fig_problem.png" alt="Problem setting figure">
+      <figcaption><b>Fig.&nbsp;Problem.</b> Budgeted observation 下的 navigation-policy forgetting 問題示意。Source: <code>outputs/figs/Fig_problem.png</code>。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="mechanism">
+  <div class="wrap">
+    <h2><span class="sec-no">03</span>Mechanism Selection for Continual WSI Navigation</h2>
+    <p class="sec-sub">本節不是「列四個方法」，而是回答一個設計問題：Which continual mechanism is suitable for a WSI navigation agent?</p>
+
+    <div class="tree" style="margin-bottom:28px;">
+<span class="q">Q1:</span> Can a single shared navigation policy continually learn all tasks?
+     → <span class="no">No.</span> Works for recent tasks but fails on old tasks.
+<span class="q">Q2:</span> Can standard weight-level CL regularization (EWC) fix this?
+     → <span class="no">Not sufficiently.</span> Old-task navigation remains weak.
+<span class="q">Q3:</span> Is the old navigation skill fundamentally lost?
+     → <span class="yes">No.</span> Per-task skill memory recovers old-task performance.
+<span class="concl"><strong>Conclusion:</strong> The issue is not lack of diagnostic signal,
+            but lack of <strong>continual navigation memory</strong>.</span>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Mechanism</th><th>North Star 對應</th><th>代表問題</th><th>訊息</th><th>狀態</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Shared module</strong><br><span style="color:var(--muted);font-size:13px;">shared router</span></td>
+            <td>單一導覽 agent 持續更新</td>
+            <td>一個共用 policy 能學所有任務嗎？</td>
+            <td>recent 好、old 崩 → 不夠</td>
+            <td><span class="pill done">已有結果</span></td>
+          </tr>
+          <tr>
+            <td><strong>Weight regularization</strong><br><span style="color:var(--muted);font-size:13px;">EWC router</span></td>
+            <td>保留舊知識、避免漂移</td>
+            <td>只約束參數能防 forgetting 嗎？</td>
+            <td>不夠 → forgetting 更結構性</td>
+            <td><span class="pill done">已有結果</span></td>
+          </tr>
+          <tr>
+            <td><strong>Modular skill memory</strong><br><span style="color:var(--muted);font-size:13px;">per-task router / skill bank</span></td>
+            <td>per-task LoRA / Adapter</td>
+            <td>保存 task-specific navigation skill 有效嗎？</td>
+            <td>有效 → CL upper bound</td>
+            <td><span class="pill done">已有結果</span></td>
+          </tr>
+          <tr>
+            <td><strong>Parameter merging</strong><br><span style="color:var(--muted);font-size:13px;">consolidation variant</span></td>
+            <td>可合併 adapter（避免膨脹）</td>
+            <td>能否不無限增長參數下整合 skills？</td>
+            <td>待完成</td>
+            <td><span class="pill wip">ongoing</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <figure class="fig">
+      <img src="../outputs/figs/Fig_mechanism.png" alt="Mechanism comparison figure">
+      <figcaption><b>Fig.&nbsp;Mechanism.</b> 各 continual mechanism 在 old-task navigation 上的對比（shared / EWC 不足，modular skill memory 恢復）。Source: <code>outputs/figs/Fig_mechanism.png</code>。</figcaption>
+    </figure>
+    <p style="font-size:13.5px;color:var(--muted);margin-top:14px;">措辭紀律：shared / EWC / per-task 可講得確定；consolidation / parameter merging <strong>只講 ongoing，不 claim solved</strong>。</p>
+  </div>
+</section>
+
+<section id="arch">
+  <div class="wrap">
+    <h2><span class="sec-no">04</span>框架：backbone-agnostic Continual Navigation Layer</h2>
+    <p class="sec-sub">CNL 是本論文貢獻，與 backbone 解耦；QPMIL-VL 只是本次實例化的一個 prompt/prototype-based backbone。</p>
+
+    <div class="layerlabel">Continual Navigation Layer (CNL) — 本論文貢獻</div>
+    <div class="flow" style="margin-bottom:18px;">
+      <div class="flowrow">
+        <div class="node cnl"><div class="t">Observation State</div><div class="d">patch feat + prototype/text similarity + evidence summary</div></div>
+        <div class="arrow">&rarr;</div>
+        <div class="node cnl"><div class="t">Context Gate</div><div class="d">本次：oracle (task id) = upper bound；未來：task-query</div></div>
+        <div class="arrow">&rarr;</div>
+        <div class="node cnl"><div class="t">Navigation Skill Memory (NSM)</div><div class="d">per-task navigation skill bank</div></div>
+        <div class="arrow">&rarr;</div>
+        <div class="node cnl"><div class="t">Budgeted Policy &pi;</div><div class="d">score patches &rarr; Top-K（budgeted observation）</div></div>
+      </div>
+    </div>
+
+    <figure class="fig">
+      <img src="../outputs/figs/Fig1_arch.png" alt="Architecture figure">
+      <figcaption><b>Fig.&nbsp;1 (Architecture).</b> backbone-agnostic CNL：Backbone Interface（encode / predict / task_query）＋ NSM ＋ Context Gate ＋ CL Update；本次 backbone = QPMIL-VL（frozen CONCH + prototype pool + CFE text classifier）。Source: <code>outputs/figs/Fig1_arch.png</code>。</figcaption>
+    </figure>
+    <p style="font-size:13.5px;color:var(--muted);margin-top:16px;">模組對應 North Star：Navigation Policy ↔ 導覽 agent action policy；NSM / CL Update ↔ adaptive learning + memory；Context Gate ↔ orchestrator。Future backbones（replay-based · regularization-based）可透過同一 interface 接入。</p>
+  </div>
+</section>
+
+<section id="evidence">
+  <div class="wrap">
+    <h2><span class="sec-no">05</span>證據（數字已驗，重用、不需重跑）</h2>
+    <p class="sec-sub">支撐決策樹三個結論的關鍵數字。</p>
+    <div class="stats">
+      <div class="stat">
+        <div class="num good">0.956</div>
+        <div class="lab">Shared policy · ESCA router@64</div>
+        <div class="cmp">vs best heuristic 0.889（GO）</div>
+      </div>
+      <div class="stat">
+        <div class="num bad">0.133</div>
+        <div class="lab">Old task · reverse old ESCA router@64</div>
+        <div class="cmp">&Lt; random 0.8 → 主動選錯</div>
+      </div>
+      <div class="stat">
+        <div class="num good">0.933 / 1.0</div>
+        <div class="lab">Per-task skill bank · reverse old ESCA fold2 / fold3</div>
+        <div class="cmp">舊任務導覽能力恢復</div>
+      </div>
+      <div class="stat">
+        <div class="num bad">~0.40</div>
+        <div class="lab">EWC negative · reverse old ESCA</div>
+        <div class="cmp">不足以防 forgetting</div>
+      </div>
+    </div>
+    <figure class="fig">
+      <img src="../outputs/figs/Fig_budget_curve.png" alt="Budget curve figure">
+      <figcaption><b>Fig.&nbsp;Budget.</b> Observation budget vs. navigation accuracy；budget 視為 agentic observation constraint（非主打 compute-saving）。Source: <code>outputs/figs/Fig_budget_curve.png</code>。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="wrap">
+    <h2><span class="sec-no">06</span>Phase roadmap（對齊 North Star）</h2>
+    <p class="sec-sub">本次交付定位在 Phase 0；後續階段為長期願景路線。</p>
+    <div class="road">
+      <div class="phase now">
+        <div class="p">Phase 0 · 本次 7/3</div>
+        <h4>無醫師軌跡前的導覽原型</h4>
+        <p>QPMIL / CONCH feature 上的 budgeted patch navigation + NSM 持續學習。</p>
+      </div>
+      <div class="phase">
+        <div class="p">Phase 1</div>
+        <h4>學習醫師 WSI 瀏覽軌跡</h4>
+        <p>doctor trajectory 訓練 action policy（move / zoom）、order-aware reward。</p>
+      </div>
+      <div class="phase">
+        <div class="p">Phase 2</div>
+        <h4>人機協作持續適應</h4>
+        <p>醫師 feedback + feature replay memory + PEFT/LoRA + parameter merging。</p>
+      </div>
+    </div>
+    <figure class="fig">
+      <img src="../outputs/figs/Fig_roadmap.png" alt="Roadmap figure">
+      <figcaption><b>Fig.&nbsp;Roadmap.</b> Phase 0 → 1 → 2 對齊 North Star 的長期路線。Source: <code>outputs/figs/Fig_roadmap.png</code>。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="scope">
+  <div class="wrap">
+    <h2><span class="sec-no">07</span>Scope statement（誠實邊界）</h2>
+    <p class="sec-sub">務必寫進報告，避免過度宣稱。</p>
+    <div class="grid2">
+      <div class="note warn">
+        <h4>邊界</h4>
+        <ul>
+          <li>只實例化一個 backbone（QPMIL-VL）；跨 CL 家族列 future。</li>
+          <li>navigation = budgeted patch selection（Phase-0）；尚無 zoom / move、多尺度、醫師軌跡、真 RLHF。</li>
+          <li>reward = WSI label / QPMIL confidence（doctor-trajectory-unavailable 的 proxy）。</li>
+          <li>Context gate 用 oracle（task id）作 upper bound；task-free gate 列 future。</li>
+        </ul>
+      </div>
+      <div class="note warn">
+        <h4>Do not claim</h4>
+        <ul>
+          <li>full physician imitation</li>
+          <li>task-free routing solved</li>
+          <li>compute saving under encode-all</li>
+          <li>raw WSI browser agent / complete RLHF</li>
+          <li>parameter merging solved</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note lock" style="margin-top:16px;">
+      <h4>保密</h4>
+      上位計畫一律以 <strong>North Star</strong> 代稱。文件內不出現計畫名稱、單位、主持人、頁碼等可識別資訊。
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    NaviPath-CL · Storyline（拍板基調）· 敘事錨 for 7/3 雙月報告與後續論文。<br>
+    配套：進度 <code>SESSION_CONTEXT.md</code> · 合作規矩 <code>COLLAB_PLAYBOOK.md</code> · QPMIL-VL 細節見其論文。
+  </div>
+</footer>
+
+</body>
+</html>

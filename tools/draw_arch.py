@@ -55,15 +55,15 @@ def banner(ax, x, y, w, h):
             "Continual task stream:  tasks $t = 1 \\dots T$",
             ha="center", va="center", fontsize=9.5, weight="bold")
     ax.text(x + w / 2, y + h * 0.30,
-            "backbone re-fit per task  ·  router trained sequentially "
-            "$\\Rightarrow$ selection forgetting on old tasks",
+            "navigation policy trained sequentially "
+            "$\\Rightarrow$ navigation forgetting on old tasks",
             ha="center", va="center", fontsize=9)
 
 
 def legend(ax, x, y):
-    items = [(FROZEN, FROZEN_E, "frozen", False),
-             (TRAIN, TRAIN_E, "trainable", False),
-             (PLANB, PLANB_E, "Plan B (mitigation)", True)]
+    items = [(FROZEN, FROZEN_E, "frozen backbone", False),
+             (TRAIN, TRAIN_E, "navigation policy (CNL)", False),
+             (PLANB, PLANB_E, "Navigation Skill Memory", True)]
     for i, (fc, ec, lab, dash) in enumerate(items):
         yy = y - i * 0.62
         box(ax, x, yy, 0.5, 0.4, "", fc, ec, dashed=dash)
@@ -73,7 +73,9 @@ def legend(ax, x, y):
 # ---------------------------------------------------------------------------
 def fig_a(path):
     fig, ax = plt.subplots(figsize=(9.6, 5.4))
-    ax.set_xlim(0, 16); ax.set_ylim(0, 9); ax.axis("off")
+    ax.set_xlim(0, 16)
+    ax.set_ylim(0, 9)
+    ax.axis("off")
 
     # input row
     box(ax, 0.3, 6.85, 2.3, 1.3, "WSI\npatches $x_i$", NEUT, NEUT_E)
@@ -83,8 +85,8 @@ def fig_a(path):
     arrow(ax, (2.6, 7.5), (3.0, 7.5))
     arrow(ax, (5.6, 7.5), (6.0, 7.5))
 
-    # prediction path (frozen)
-    ax.text(10.5, 8.42, "Prediction path  (frozen $\\Rightarrow$ Forgetting $=0$)",
+    # diagnostic backbone (frozen)
+    ax.text(10.5, 8.42, "Diagnostic backbone  (frozen; QPMIL-VL instance)",
             fontsize=10, color=FROZEN_E, weight="bold", ha="center")
     box(ax, 9.6, 6.55, 3.1, 1.65,
         "QPMIL head $\\theta^\\ast$\nprompts · prototypes\ntext classifier $F_{txt}$",
@@ -94,11 +96,11 @@ def fig_a(path):
     arrow(ax, (8.6, 7.5), (9.6, 7.5), ec="#9a9a9a", dashed=True)  # all-patch
     ax.text(9.1, 7.75, "All", fontsize=8, color="#9a9a9a", ha="center")
 
-    # selection path (trainable)
-    ax.text(0.3, 5.7, "Selection path  (only MicroRouter $\\phi$ is trained, continually)",
+    # navigation policy (trainable, Continual Navigation Layer)
+    ax.text(0.3, 5.7, "Navigation policy  (CNL; trained continually over the task stream)",
             fontsize=10, color=TRAIN_E, weight="bold")
     box(ax, 0.3, 3.7, 2.6, 1.4, "summary $s_i$\ntext / proto sim", NEUT, NEUT_E)
-    box(ax, 3.3, 3.7, 3.0, 1.4, "MicroRouter $\\phi$\nMLP $\\to$ score $r_i$",
+    box(ax, 3.3, 3.7, 3.0, 1.4, "navigation policy $\\phi$\nMLP $\\to$ score $r_i$",
         TRAIN, TRAIN_E)
     box(ax, 6.9, 3.7, 2.3, 1.4, "Top-$K$\nselect $\\mathcal{S}_K$", NEUT, NEUT_E)
     arrow(ax, (7.0, 6.85), (1.6, 5.1), rad=-0.12)     # Z -> summary
@@ -108,9 +110,9 @@ def fig_a(path):
     arrow(ax, (9.2, 4.7), (10.4, 6.55), ec=TRAIN_E, rad=0.16)
     ax.text(9.35, 5.75, "$K$ patches", fontsize=8.6, color=TRAIN_E, ha="left")
 
-    # Plan B
+    # Navigation Skill Memory (NSM)
     box(ax, 3.3, 1.55, 3.0, 1.35,
-        "Plan B: RouterEWC /\nper-task (replay-free)", PLANB, PLANB_E,
+        "Navigation Skill Memory\nper-task / EWC (replay-free)", PLANB, PLANB_E,
         dashed=True, fs=8.8)
     arrow(ax, (4.8, 2.9), (4.8, 3.7), ec=PLANB_E, dashed=True)
 
@@ -124,7 +126,9 @@ def fig_b(path):
     """Variant: emphasize that router AND training-free selectors feed the SAME
     frozen backbone, so any accuracy gap is attributable to selection only."""
     fig, ax = plt.subplots(figsize=(9.6, 5.4))
-    ax.set_xlim(0, 16); ax.set_ylim(0, 9); ax.axis("off")
+    ax.set_xlim(0, 16)
+    ax.set_ylim(0, 9)
+    ax.axis("off")
 
     # input row (top-left)
     box(ax, 0.3, 6.95, 2.2, 1.25, "WSI\npatches $x_i$", NEUT, NEUT_E)
@@ -137,7 +141,7 @@ def fig_b(path):
     ax.text(0.3, 5.75, "Patch selectors  (all feed the SAME frozen backbone)",
             fontsize=10, color="#333333", weight="bold")
     box(ax, 0.3, 4.0, 3.5, 1.4,
-        "MicroRouter $\\phi$  (ours)\n$[z_i; s_i]\\to$ MLP $\\to r_i$",
+        "navigation policy $\\phi$  (ours)\n$[z_i; s_i]\\to$ MLP $\\to r_i$",
         TRAIN, TRAIN_E, fs=8.8)
     box(ax, 0.3, 2.0, 3.5, 1.4,
         "training-free baselines\nrandom · prototype · semantic",

@@ -10,12 +10,14 @@
 
 ## 0. 命名（固定用詞）
 
-| 項目 | 名稱 |
-|---|---|
-| 整體方法 | **NaviPath-CL** |
-| 貢獻層 | **Continual Navigation Layer (CNL)** |
-| 核心模組 | **Navigation Skill Memory (NSM)** |
+
+| 項目     | 名稱                                                  |
+| ------ | --------------------------------------------------- |
+| 整體方法   | **NaviPath-CL**                                     |
+| 貢獻層    | **Continual Navigation Layer (CNL)**                |
+| 核心模組   | **Navigation Skill Memory (NSM)**                   |
 | 上位願景代稱 | **North Star**（physician-like WSI navigation agent） |
+
 
 ---
 
@@ -23,10 +25,12 @@
 
 兩個 audience，兩套敘事，**不可混用**：
 
-| Audience | 要聽的故事 |
-|---|---|
-| 老師 / North Star 內部 | NaviPath-CL 是 North Star physician-like WSI navigation agent 的 **Phase-0 CL 原型** |
-| Paper reviewer | 一個新的 WSI-CL 問題：**continual learning of the observation policy under budgeted WSI inference** |
+
+| Audience           | 要聽的故事                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| 老師 / North Star 內部 | NaviPath-CL 是 North Star physician-like WSI navigation agent 的 **Phase-0 CL 原型**             |
+| Paper reviewer     | 一個新的 WSI-CL 問題：**continual learning of the observation policy under budgeted WSI inference** |
+
 
 ```text
 Internal / North Star framing : Phase-0 prototype for a physician-like WSI navigation agent.
@@ -59,14 +63,17 @@ One-liner（不含 task-free；留 future）：
 
 > 本節不是「列四個方法」，而是回答一個設計問題：**Which continual mechanism is suitable for a WSI navigation agent?**
 
-| Mechanism | North Star 對應 | 實驗變體 | 代表問題 | 訊息 | 狀態 |
-|---|---|---|---|---|---|
-| Shared module | 單一導覽 agent 持續更新 | shared router | 一個共用 policy 能學所有任務嗎？ | recent 好、old 崩 → 不夠 | ✅ 已有結果 |
-| Weight regularization | 保留舊知識、避免漂移 | EWC router | 只約束參數能防 forgetting 嗎？ | 不夠 → forgetting 更結構性 | ✅ 已有結果 |
-| Modular skill memory | per-task LoRA / Adapter | per-task router / skill bank | 保存 task-specific navigation skill 有效嗎？ | 有效 → CL upper bound | ✅ 已有結果 |
-| Parameter merging / consolidation | 可合併 adapter（避免膨脹） | consolidation variant（`consolidate.py`） | 能否不無限增長參數下整合 skills？ | **待完成** | ⏳ ongoing / planned |
+
+| Mechanism                         | North Star 對應           | 實驗變體                                    | 代表問題                                   | 訊息                   | 狀態                  |
+| --------------------------------- | ----------------------- | --------------------------------------- | -------------------------------------- | -------------------- | ------------------- |
+| Shared module                     | 單一導覽 agent 持續更新         | shared router                           | 一個共用 policy 能學所有任務嗎？                   | recent 好、old 崩 → 不夠  | ✅ 已有結果              |
+| Weight regularization             | 保留舊知識、避免漂移              | EWC router                              | 只約束參數能防 forgetting 嗎？                  | 不夠 → forgetting 更結構性 | ✅ 已有結果              |
+| Modular skill memory              | per-task LoRA / Adapter | per-task router / skill bank            | 保存 task-specific navigation skill 有效嗎？ | 有效 → CL upper bound  | ✅ 已有結果              |
+| Parameter merging / consolidation | 可合併 adapter（避免膨脹）       | consolidation variant（`consolidate.py`） | 能否不無限增長參數下整合 skills？                   | **待完成**              | ⏳ ongoing / planned |
+
 
 **措辭紀律（避免過度宣稱）**：
+
 - shared / EWC / per-task：可講得確定。
 - consolidation / parameter merging：**只講 ongoing，不 claim solved**。
 - 安全句：*We conduct an initial mechanism probe over North-Star-proposed continual mechanisms in a Phase-0 navigation setting. A single shared policy and weight regularization are insufficient; modular skill memory is the more reliable direction; scalable consolidation / merging is ongoing.*
@@ -121,6 +128,8 @@ flowchart TB
     FUT["Future backbones:<br/>replay-based · regularization-based"] -. compatible via same interface .-> IFACE
 ```
 
+
+
 **模組對應 North Star**：Navigation Policy ↔ 導覽 agent action policy；NSM / CL Update ↔ adaptive learning + memory module；Context Gate ↔ orchestrator。
 
 ---
@@ -166,11 +175,13 @@ flowchart TB
 
 ## 11. Phase roadmap（對齊 North Star）
 
-| 階段 | North Star 目標 | 我們現在 / 將來 |
-|---|---|---|
-| **Phase 0（本次 7/3）** | 無醫師軌跡前的導覽原型 | QPMIL/CONCH feature 上的 budgeted patch navigation + NSM CL |
-| Phase 1 | 學習醫師 WSI 瀏覽軌跡 | doctor trajectory 訓練 action policy（move/zoom）、order-aware reward |
-| Phase 2 | 人機協作持續適應 | 醫師 feedback + feature replay memory + PEFT/LoRA + parameter merging |
+
+| 階段                  | North Star 目標 | 我們現在 / 將來                                                           |
+| ------------------- | ------------- | ------------------------------------------------------------------- |
+| **Phase 0（本次 7/3）** | 無醫師軌跡前的導覽原型   | QPMIL/CONCH feature 上的 budgeted patch navigation + NSM CL           |
+| Phase 1             | 學習醫師 WSI 瀏覽軌跡 | doctor trajectory 訓練 action policy（move/zoom）、order-aware reward    |
+| Phase 2             | 人機協作持續適應      | 醫師 feedback + feature replay memory + PEFT/LoRA + parameter merging |
+
 
 ---
 
@@ -181,3 +192,4 @@ flowchart TB
 - **7/15**：論文初稿差不多定稿（**老師 review**）。
 - **7/20**：年度報告。
 - 7/3–7/15：把 pilot 做成論文；可選 task-free gate / consolidation pilot 補強。
+

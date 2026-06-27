@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NaviPath-CL — 日程</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <span class="brand">NaviPath<span class="cl">-CL</span></span>
+    <a class="link" href="index.html">Storyline</a>
+    <a class="link" href="board.html">進度看板</a>
+    <a class="link active" href="schedule.html">日程</a>
+  </div>
+</nav>
+
+<header class="hero compact">
+  <div class="wrap">
+    <div class="kicker">日程 · 6/27 → 7/20</div>
+    <h1 class="title sm">時程與 Phase Roadmap</h1>
+    <p class="subtitle">從基調定稿、pilot 完成、雙月報告，到論文初稿（老師 review）與年度報告。</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">01</span>甘特圖</h2>
+    <p class="sec-sub">綠色＝主要工作；淺綠＝補強實驗；橘色＝里程碑 / 交付點。</p>
+    <div class="gantt">
+      <div class="head">
+        <div class="label" style="padding:8px 16px;">工作項目</div>
+        <div class="scale">
+          <span>6/27</span><span>7/2</span><span>7/7</span><span>7/12</span><span>7/17</span><span>7/20</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">SDD M0–M7<span class="sub">specs / agent / 圖 / 報告</span></div>
+        <div class="bars">
+          <div class="grid"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="bar" style="left:0%;width:26%;">已完成</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">RunPod 對稱證據<span class="sub">paper-order per-task / EWC</span></div>
+        <div class="bars">
+          <div class="grid"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="bar soft" style="left:13%;width:22%;">CUDA 重算</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">雙月報告<span class="sub">架構 + pilot + pivot</span></div>
+        <div class="bars">
+          <div class="grid"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="bar mark" style="left:22%;width:9%;">7/2–7/3</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">論文初稿<span class="sub">paper framing → 定稿</span></div>
+        <div class="bars">
+          <div class="grid"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="bar" style="left:26%;width:52%;">撰寫 + 補圖表</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">老師 review<span class="sub">初稿 review</span></div>
+        <div class="bars">
+          <div class="grid"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="bar mark" style="left:78%;width:9%;">7/15</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="label">年度報告<span class="sub">annual outline → 定稿</span></div>
+        <div class="bars">
+          <div class="grid"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="bar" style="left:78%;width:22%;">收斂交付</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">02</span>里程碑時間線</h2>
+    <div class="timeline">
+      <div class="tl done">
+        <div class="date">7 / 2</div>
+        <div class="what">基調定稿 + pilot 完成 + <strong>雙月報告</strong>。pilot = NSM（oracle gate）wrapper 能 navigate→predict，補齊 paper-order per-task / EWC 對稱證據。</div>
+      </div>
+      <div class="tl done">
+        <div class="date">7 / 3</div>
+        <div class="what">報告（架構 + pilot + pivot plan；不假裝 paper 已完成）。</div>
+      </div>
+      <div class="tl">
+        <div class="date">7 / 15</div>
+        <div class="what">論文初稿差不多定稿（<strong>老師 review</strong>）。7/3–7/15 把 pilot 做成論文；可選 task-free gate / consolidation pilot 補強。</div>
+      </div>
+      <div class="tl dim">
+        <div class="date">7 / 20</div>
+        <div class="what">年度報告。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">03</span>Phase Roadmap（對齊 North Star）</h2>
+    <p class="sec-sub">本次交付定位在 Phase 0；後續為長期願景。</p>
+    <div class="road">
+      <div class="phase now">
+        <div class="p">Phase 0 · 本次 7/3</div>
+        <h4>無醫師軌跡前的導覽原型</h4>
+        <p>QPMIL / CONCH feature 上的 budgeted patch navigation + NSM 持續學習。</p>
+      </div>
+      <div class="phase">
+        <div class="p">Phase 1</div>
+        <h4>學習醫師 WSI 瀏覽軌跡</h4>
+        <p>doctor trajectory 訓練 action policy（move / zoom）、order-aware reward。</p>
+      </div>
+      <div class="phase">
+        <div class="p">Phase 2</div>
+        <h4>人機協作持續適應</h4>
+        <p>醫師 feedback + feature replay memory + PEFT/LoRA + parameter merging。</p>
+      </div>
+    </div>
+    <figure class="fig">
+      <img src="../outputs/figs/Fig_roadmap.png" alt="Roadmap figure">
+      <figcaption><b>Fig.&nbsp;Roadmap.</b> Phase 0 → 1 → 2 對齊 North Star 的長期路線。Source: <code>outputs/figs/Fig_roadmap.png</code>。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    日程 · 對應 <code>STORYLINE.md §11–12</code>。里程碑以 repo 報告與 specs 為準。
+  </div>
+</footer>
+
+</body>
+</html>

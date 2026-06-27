@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NaviPath-CL — 進度看板</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <span class="brand">NaviPath<span class="cl">-CL</span></span>
+    <a class="link" href="index.html">Storyline</a>
+    <a class="link active" href="board.html">進度看板</a>
+    <a class="link" href="schedule.html">日程</a>
+  </div>
+</nav>
+
+<header class="hero compact">
+  <div class="wrap">
+    <div class="kicker">進度看板 · SDD Worklog</div>
+    <h1 class="title sm">Phase-0 SDD 開發進度</h1>
+    <p class="subtitle">M0–M7 milestone 已全數完成；後續為 RunPod 補強實驗與報告 / 論文 / 年度報告。</p>
+    <div class="progress">
+      <span class="pct">100%</span>
+      <div class="track"><div class="fill" style="width:100%"></div></div>
+      <span style="color:var(--muted);font-size:14px;">8 / 8 milestones（M0–M7）</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">A</span>Kanban</h2>
+    <p class="sec-sub">Done = Phase-0 SDD milestone；In progress / Next = 接續實驗與交付。</p>
+    <div class="kanban">
+
+      <div class="col">
+        <h3>Done <span class="n">8</span></h3>
+        <div class="task done"><div class="id">M0 · 6/27</div><div class="ti">specs/ 骨架</div><div class="ds">README(SDD 規則) + 00_master_spec + ADR-0001~0005 + WORKLOG</div></div>
+        <div class="task done"><div class="id">M1 · 6/28</div><div class="ti">continual_agent.py</div><div class="ds">SPEC-01：NavigationSkillBank + ContextGate + ContinualWSINavigationAgent</div></div>
+        <div class="task done"><div class="id">M2 · 6/29</div><div class="ti">證據彙整</div><div class="ds">SPEC-02：collect / plot 現有 json，mechanism_table.py</div></div>
+        <div class="task done"><div class="id">M3 · 6/30</div><div class="ti">agent end-to-end</div><div class="ds">重現 old ESCA@64≈0.933 + mechanism-selection 表 + 決策樹 argument</div></div>
+        <div class="task done"><div class="id">M4 · 7/1</div><div class="ti">5 張核心圖</div><div class="ds">SPEC-03：draw_arch 改名 + 問題 / CL memory / EWC negative / roadmap</div></div>
+        <div class="task done"><div class="id">M5 · 7/2</div><div class="ti">結果凍結</div><div class="ds">SPEC-04：凍結結果 + 雙月報告稿</div></div>
+        <div class="task done"><div class="id">M6 · 7/3</div><div class="ti">報告</div><div class="ds">架構 + pilot + pivot plan</div></div>
+        <div class="task done"><div class="id">M7 · 7/3–7/15</div><div class="ti">論文初稿</div><div class="ds">SPEC-05：paper framing 初稿</div></div>
+      </div>
+
+      <div class="col">
+        <h3>In progress <span class="n">1</span></h3>
+        <div class="task wip"><div class="id">mechanism</div><div class="ti">Parameter merging / consolidation</div><div class="ds">consolidate.py 變體；只講 ongoing，不 claim solved</div></div>
+      </div>
+
+      <div class="col">
+        <h3>Next <span class="n">3</span></h3>
+        <div class="task todo"><div class="id">RunPod</div><div class="ti">對稱證據補強</div><div class="ds">paper-order per-task / EWC 對稱 run（CUDA 重算）→ 回傳本機</div></div>
+        <div class="task todo"><div class="id">7/15</div><div class="ti">老師 review</div><div class="ds">論文初稿差不多定稿，送老師 review</div></div>
+        <div class="task todo"><div class="id">7/20</div><div class="ti">年度報告</div><div class="ds">annual_2026-07-20_outline → 定稿</div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">B</span>交付物清單</h2>
+    <p class="sec-sub">各 milestone 產出的檔案位置（repo 相對路徑）。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>交付物</th><th>路徑</th><th>狀態</th></tr></thead>
+        <tbody>
+          <tr><td>敘事錨 Storyline</td><td><code>STORYLINE.md</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>SDD specs / ADR / worklog</td><td><code>specs/</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>持續導覽 agent</td><td><code>navipath_moe/continual_agent.py</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>mechanism 表工具</td><td><code>tools/mechanism_table.py</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>5 張核心圖</td><td><code>outputs/figs/Fig*.png</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>雙月報告稿</td><td><code>reports/bimonthly_2026-07-03.md</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>論文初稿大綱</td><td><code>paper/NaviPath-CL_draft_outline.md</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>年度報告大綱</td><td><code>reports/annual_2026-07-20_outline.md</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>對稱證據（paper-order / EWC）</td><td><code>outputs/</code>（RunPod 回傳）</td><td><span class="pill wip">待跑</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">C</span>關鍵證據（已驗）</h2>
+    <p class="sec-sub">支撐 mechanism-selection 結論。</p>
+    <div class="stats">
+      <div class="stat"><div class="num good">0.956</div><div class="lab">Shared · ESCA router@64</div><div class="cmp">vs best heuristic 0.889</div></div>
+      <div class="stat"><div class="num bad">0.133</div><div class="lab">Old task · reverse old ESCA</div><div class="cmp">&Lt; random 0.8 → 主動選錯</div></div>
+      <div class="stat"><div class="num good">0.933 / 1.0</div><div class="lab">Per-task · fold2 / fold3</div><div class="cmp">舊任務導覽恢復</div></div>
+      <div class="stat"><div class="num bad">~0.40</div><div class="lab">EWC negative · reverse old</div><div class="cmp">不足</div></div>
+    </div>
+    <figure class="fig">
+      <img src="../outputs/figs/Fig_mechanism.png" alt="Mechanism comparison figure">
+      <figcaption><b>Fig.&nbsp;Mechanism.</b> shared / EWC 不足，modular skill memory 恢復 old-task navigation。Source: <code>outputs/figs/Fig_mechanism.png</code>。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    進度看板 · 對應 <code>specs/worklog/WORKLOG.md</code> 與 <code>outputs/PROGRESS.md</code>。狀態以 repo 實際檔案為準。
+  </div>
+</footer>
+
+</body>
+</html>
