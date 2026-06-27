@@ -106,6 +106,11 @@ def main():
     ap.add_argument("--redundancy", type=float, default=0.5, help="sequential 冗餘懲罰權重")
     ap.add_argument("--eval-task", type=int, default=0,
                     help="要評估的（舊）任務 index；oracle gate 用此 id 選 skill")
+    ap.add_argument("--eval-tasks", default="",
+                    help="逗號分隔要評估的 task index（如 0,1,2,3），一次 inference 補滿 "
+                         "retention 表；空=用單一 --eval-task")
+    ap.add_argument("--skill-bank-in", default="",
+                    help="載入已存的 NSM skill bank（.pt）→ 完全跳過訓練，純 inference")
     ap.add_argument("--policy-mode", choices=["router", "zero_shot"], default="router",
                     help="router=訓練式 NSM skill；zero_shot=不訓練、frozen-FM 文字相似度 (SPEC-07)")
     ap.add_argument("--lr", type=float, default=5e-4)
@@ -138,13 +143,21 @@ def main():
 
     loaders = build_loaders(cfg, order, args.fold)
 
+    # ── 取得 NSM skill bank（三條路徑，擇一）─────────────────────────────────
+    # 1) zero_shot：不需要 bank（分數來自 frozen FM），佔位即可。
+    # 2) --skill-bank-in：載入已存 bank → 完全跳過訓練，純 inference（幾分鐘）。
+    # 3) 否則：逐任務訓練 router、snapshot 進 bank（昂貴；建議搭 --skill-bank-out 存檔重用）。
+    final_state = None  # 學完所有任務後的最終 router state（= 無 NSM 策略）
     if args.policy_mode == "zero_shot":
-        # SPEC-07：不訓練任何 router；navigation 分數來自 frozen FM 的 patch-text 相似度。
         print("[seqobs] policy_mode=zero_shot — 跳過 router 訓練（frozen-FM navigation）", flush=True)
         nsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)  # 不被使用，僅佔位
-        nonsm_bank = nsm_bank
+    elif args.skill_bank_in:
+        print(f"[seqobs] load skill bank <- {args.skill_bank_in}（跳過訓練，純 inference）", flush=True)
+        nsm_bank = NavigationSkillBank.load(args.skill_bank_in, map_location=device)
+        last_tid = max(nsm_bank.task_ids())
+        final_state = nsm_bank.get_state(last_tid)  # 最終任務 router = 無 NSM 策略
+        print(f"[seqobs]   bank tasks={nsm_bank.task_ids()}; nonsm uses task {last_tid}", flush=True)
     else:
-        # 逐任務訓練單一 router：snapshot -> NSM；最終狀態 -> 無 NSM policy
         nsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)
         router = MicroRouterV0(feat_dim=512, hidden=256).to(device)
         for t, ds in enumerate(order):
@@ -153,41 +166,51 @@ def main():
                                   device, t, args.epochs, args.top_k,
                                   args.lr, args.max_train, ewc=None)
             nsm_bank.add_skill(t, copy.deepcopy(router.state_dict()))
-
-        # 無 NSM：用「學完所有任務後的最終 router」對舊任務導覽（預期會忘）
-        nonsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)
-        nonsm_bank.add_skill(args.eval_task, copy.deepcopy(router.state_dict()))
-
+        final_state = copy.deepcopy(router.state_dict())
         if args.skill_bank_out:
             os.makedirs(os.path.dirname(args.skill_bank_out) or ".", exist_ok=True)
             nsm_bank.save(args.skill_bank_out)
-            print(f"[seqobs] saved skill bank -> {args.skill_bank_out} (tasks={nsm_bank.task_ids()})")
+            print(f"[seqobs] saved skill bank -> {args.skill_bank_out} "
+                  f"(tasks={nsm_bank.task_ids()}) — 之後可用 --skill-bank-in 純評估", flush=True)
 
-    eval_ds = order[args.eval_task]
-    print(f"\n[seqobs] eval grid on {eval_ds} test (task_index={args.eval_task}) "
-          f"policy={args.policy_mode}", flush=True)
-    results, n_slides = eval_grid(backbone, nsm_bank, nonsm_bank,
-                                  loaders[eval_ds]["test"], device, args.eval_task,
-                                  budgets, args.step_size, args.redundancy, args.max_eval,
-                                  policy_mode=args.policy_mode)
-    for m, d in results.items():
-        print(f"[seqobs]   {m:>14}: {d}", flush=True)
+    # ── 解析要評估的任務清單（--eval-tasks 優先）──────────────────────────────
+    if args.eval_tasks.strip():
+        eval_list = [int(x) % len(order) for x in args.eval_tasks.split(",")]
+    else:
+        eval_list = [args.eval_task]
 
     os.makedirs(args.out, exist_ok=True)
-    # zero_shot 結果加 policy 標記，避免覆蓋 router-mode 既有結果
     tag = "" if args.policy_mode == "router" else "_policy-zeroshot"
-    out_path = os.path.join(
-        args.out, f"seqobs_{args.order}_f{args.fold}_task{args.eval_task}{tag}.json")
-    with open(out_path, "w") as f:
-        json.dump({
-            "order": args.order, "fold": args.fold, "eval_task": eval_ds,
-            "task_index": args.eval_task, "gate": "oracle",
-            "policy_mode": args.policy_mode,
-            "budgets": list(budgets), "step_size": args.step_size,
-            "redundancy": args.redundancy, "n_eval_slides": n_slides,
-            "results": results,
-        }, f, indent=2)
-    print(f"[seqobs] saved {out_path}", flush=True)
+    for eval_t in eval_list:
+        eval_ds = order[eval_t]
+        # nonsm：用「最終 router」對該舊任務導覽（zero_shot 無此概念，沿用佔位 bank）
+        if args.policy_mode == "zero_shot":
+            nonsm_bank = nsm_bank
+        else:
+            nonsm_bank = NavigationSkillBank(feat_dim=512, hidden=256)
+            nonsm_bank.add_skill(eval_t, copy.deepcopy(final_state))
+
+        print(f"\n[seqobs] eval grid on {eval_ds} test (task_index={eval_t}) "
+              f"policy={args.policy_mode}", flush=True)
+        results, n_slides = eval_grid(backbone, nsm_bank, nonsm_bank,
+                                      loaders[eval_ds]["test"], device, eval_t,
+                                      budgets, args.step_size, args.redundancy, args.max_eval,
+                                      policy_mode=args.policy_mode)
+        for m, d in results.items():
+            print(f"[seqobs]   {m:>14}: {d}", flush=True)
+
+        out_path = os.path.join(
+            args.out, f"seqobs_{args.order}_f{args.fold}_task{eval_t}{tag}.json")
+        with open(out_path, "w") as f:
+            json.dump({
+                "order": args.order, "fold": args.fold, "eval_task": eval_ds,
+                "task_index": eval_t, "gate": "oracle",
+                "policy_mode": args.policy_mode,
+                "budgets": list(budgets), "step_size": args.step_size,
+                "redundancy": args.redundancy, "n_eval_slides": n_slides,
+                "results": results,
+            }, f, indent=2)
+        print(f"[seqobs] saved {out_path}", flush=True)
 
 
 if __name__ == "__main__":

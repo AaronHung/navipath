@@ -34,6 +34,7 @@
   - **CL 保留**：old-task `acc@K`，有 NSM vs 無 NSM（naive 連續訓練）。
   - **Agentic**：sequential vs one-shot Top-K（同 budget）。
   - **zero-shot navigator baseline**（SPEC-07，`--policy-mode zero_shot`）：不訓練、frozen-FM 文字相似度選 patch；**不需 epochs/skill-bank、很快**，四個任務一次跑完。用來回應 ZeroSlide / 老師 challenge。
+- **效率鐵則（訓練一次、評估多次）**：唯一吃時間的是 router 訓練（~3hr/fold）。**訓練時加 `--skill-bank-out` 存下 NSM bank（含 4 任務 skill）**；之後所有評估（4 任務 retention、不同 budget/redundancy、zero-shot）一律用 **`--skill-bank-in` 載入、純 inference（分鐘級），`--eval-tasks 0,1,2,3` 一次補滿 retention 表**。不要為了補任務而重訓。
 - **交付**：`outputs/seqobs_<order>_fold<f>_*.json` + `.log`（router 與 `*_policy-zeroshot.json` 並存，不覆蓋）；push。
 - **驗收**：每格 json 非空、含 `task_index` / `budget` / `mode` 欄位。
 
