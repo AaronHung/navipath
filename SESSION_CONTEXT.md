@@ -1,6 +1,7 @@
 # NaviPath 研究上下文（給新 session 讀）— 2026-06-27 大轉向版
 
 > 本檔是「切換 chat」的接手文件。讀完即可在新 chat 直接接續，不需回溯舊對話。
+> **換 session 先讀 `COLLAB_PLAYBOOK.md`（合作湯底：Mac MPS→RunPod CUDA tmux、git/測試/成本規矩），再讀本檔（專案進度）。**
 > 詳細計畫見 `.cursor/plans/navipath_agent_cl_*.plan.md`（若不在，見本檔第 5–9 節）。
 
 ---
