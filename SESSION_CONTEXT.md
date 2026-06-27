@@ -6,6 +6,19 @@
 
 ---
 
+## ⭐ 最新拍板基調（2026-06-27）— 先讀 `STORYLINE.md`
+
+- **Current pivot**：NaviPath → **NaviPath-CL**，定位為 **North Star**（physician-like WSI navigation agent 的長期願景）之 **Phase-0 CL 原型**。
+- **Core problem**：agentic / budgeted WSI 下，CL 不只在 classification，也在 observation / navigation policy。
+- **QPMIL-VL 定位**：frozen **prompt/prototype-based diagnostic backbone + weak supervisory signal**；**不是 replay，也不是要打敗的對手**。
+- **Abstraction**：full navigation 簡化為 budgeted patch selection over precomputed CONCH features（Phase-0；醫師軌跡 / zoom / RLHF 尚未有）。
+- **Main finding**：shared policy recent 好 / old 忘；EWC 不足；per-task skill memory 可恢復 → 需 **Navigation Skill Memory (NSM)**。
+- **命名**：方法 = **NaviPath-CL**；貢獻層 = **Continual Navigation Layer (CNL)**；核心模組 = **Navigation Skill Memory (NSM)**；上位願景代稱 = **North Star**。
+- **Do not claim**：full physician imitation／task-free routing solved／compute saving (encode-all)／raw WSI browser agent／complete RLHF／parameter merging solved。
+- **保密**：上位計畫一律以 **North Star** 代稱，勿寫計畫名／單位／主持人／頁碼等可識別資訊。
+
+---
+
 ## 0. 一句話：我們 pivot 了
 
 舊主軸「selector forgetting 診斷 + Top-K budget」被教授（Huei-Fang）打掉，理由成立。
@@ -101,7 +114,11 @@ flowchart LR
 - 6/29：彙整證據（重用結果）；可選補 paper-order per-task + EWC 對稱（指令見下）。
 - 6/30：**pilot task-free context gate（logit/prototype gate）+ 對 oracle 上界比較 ← 核心交付**。
 - 7/1：5 張核心圖表。
-- 7/2：凍結結果、寫 7/3 報告稿、不加新實驗。
+- 7/2：基調定稿 + pilot 完成 + **雙月報告**；凍結結果、寫報告稿、不加新實驗。
+- 7/3：報告（架構 + pilot + pivot plan；不假裝 paper 已完成）。
+- 7/15：論文初稿差不多定稿（**老師 review**）。
+- 7/20：年度報告。
+- 7/3–7/15：把 pilot 做成論文；可選 task-free gate / consolidation pilot 補強。
 
 可選對稱補跑（RunPod tmux）：
 ```bash
