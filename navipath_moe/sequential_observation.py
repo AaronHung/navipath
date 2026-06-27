@@ -142,16 +142,23 @@ class SequentialBudgetedObserver:
             res.trace.append(pick.tolist())
             res.n_rounds += 1
 
-            # 用 frozen backbone 在「目前已看子集」上更新信心
+            # 只有需要「信心早停」時才每輪呼叫 backbone（否則白做；省大量算力）。
+            # 不早停時，最終子集只需在迴圈外預測一次 -> sequential 成本 ≈ one-shot。
+            if cfg.confidence_threshold is not None:
+                sel = torch.tensor(state.seen, device=Z.device)
+                logits = predict_fn(Z.index_select(0, sel))
+                state.last_logits = logits
+                state.confidence = float(F.softmax(logits.reshape(-1), dim=-1).max())
+                if state.confidence >= cfg.confidence_threshold:
+                    res.stopped_early = True
+                    break
+
+        # 最終在已選子集上預測一次（涵蓋無早停情況，並確保 logits 對應最終子集）
+        if state.seen:
             sel = torch.tensor(state.seen, device=Z.device)
             logits = predict_fn(Z.index_select(0, sel))
             state.last_logits = logits
-            state.confidence = float(F.softmax(logits, dim=-1).max())
-
-            if cfg.confidence_threshold is not None \
-                    and state.confidence >= cfg.confidence_threshold:
-                res.stopped_early = True
-                break
+            state.confidence = float(F.softmax(logits.reshape(-1), dim=-1).max())
 
         res.selected = torch.tensor(state.seen, dtype=torch.long, device=Z.device)
         res.confidence = state.confidence
