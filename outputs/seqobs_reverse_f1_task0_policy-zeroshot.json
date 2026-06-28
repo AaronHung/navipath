@@ -1,0 +1,34 @@
+{
+  "order": "reverse",
+  "fold": 1,
+  "eval_task": "tcga_esca",
+  "task_index": 0,
+  "gate": "oracle",
+  "policy_mode": "zero_shot",
+  "budgets": [
+    0,
+    128,
+    64,
+    32,
+    16
+  ],
+  "step_size": 16,
+  "redundancy": 0.5,
+  "n_eval_slides": 15,
+  "results": {
+    "zeroshot_seq": {
+      "All": 0.8667,
+      "128": 0.8,
+      "64": 0.7333,
+      "32": 0.6,
+      "16": 0.6667
+    },
+    "zeroshot_oneshot": {
+      "All": 0.8667,
+      "128": 0.6667,
+      "64": 0.6667,
+      "32": 0.6,
+      "16": 0.6667
+    }
+  }
+}
