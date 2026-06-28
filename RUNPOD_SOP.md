@@ -86,25 +86,61 @@ PYTHONPATH=. python tests/test_shapes.py
 
 ### Step 4：跑實驗
 
-```bash
-cd /workspace/01_navipath
+> **核心概念**：NaviPath 的實驗分兩種，必須清楚區分：
+>
+> | 類型 | 跑什麼 | 要 GPU 多久 | 輸出什麼 |
+> |---|---|---|---|
+> | **訓練（一次性）** | 訓練 MicroRouterV0，儲存 NSM Skill Bank | 3–5 小時（3 fold） | `skill_bank_*.pt` |
+> | **Inference-only（重複跑）** | 載入已存 skill bank，只改推論參數（λ/budget 等）掃描 | 幾分鐘/組 | json 結果 |
+>
+> **原則：router 只要訓練一次、存好 skill bank；之後所有參數掃描都用 `--skill-bank-in` 跳過訓練。**
 
-# M1：QPMIL baseline（paper + reverse，fold 1，存 checkpoint）
+```bash
+cd $REPO   # /workspace/src/navipath
+
+# ── M1：QPMIL backbone 訓練（凍結 backbone，這是整個實驗的地基）─────────────
+# 一次性，約 1-2 小時，輸出 outputs/qpmil_{order}_fold{F}.pt
 python train_qpmil_runner.py --order paper   --fold 1 --save-ckpt 2>&1 | tee outputs/run_paper_f1.log
 python train_qpmil_runner.py --order reverse --fold 1 --save-ckpt 2>&1 | tee outputs/run_reverse_f1.log
 
-# M3：patch-budget 表（不需訓練，直接跑 inference）
+# ── N2：router + NSM Skill Bank 訓練（一次性，約 1-1.5 小時 / fold）──────────
+# 訓練 4 個任務的 MicroRouterV0，每任務 router snapshot 存入 NavigationSkillBank
+# --skill-bank-out：存下來，之後不用再訓練
+python eval_sequential_observation.py \
+    --backbone-ckpt outputs/qpmil_reverse_fold1.pt \
+    --order reverse --fold 1 --eval-tasks 0,1,2,3 \
+    --epochs 5 --budgets 0,128,64,32,16 --step-size 16 \
+    --skill-bank-out outputs/skill_bank_reverse_f1.pt \
+    --out outputs/n2_reverse_f1 \
+    2>&1 | tee outputs/n2_reverse_f1.log
+
+# ── 參數掃描（inference-only，幾分鐘/組，不需要 GPU 長時間）────────────────
+# 已有 skill bank → 用 --skill-bank-in 跳過訓練，只改 λ/budget 等參數
+# 永遠不要在掃描時重新訓練！
+for LAMBDA in 0.0 1.0 2.0 4.0; do
+  python eval_sequential_observation.py \
+    --order reverse --fold 1 --eval-tasks 0,1,2,3 \
+    --budgets 0,64,32,16 --step-size 16 \
+    --redundancy $LAMBDA \
+    --normalize-base true \
+    --redundancy-mode maxsim \
+    --skill-bank-in  outputs/skill_bank_reverse_f1.pt \
+    --out outputs/routeA_sweep/lambda_${LAMBDA} \
+    2>&1 | tee outputs/routeA_sweep/lambda_${LAMBDA}.log
+done
+```
+
+```bash
+# ── M3：patch-budget 表（不需訓練，直接跑 inference）─────────────────────────
 for TASK in 0 1 2 3; do
   python run_patch_budget.py --ckpt outputs/qpmil_paper_fold1.pt \
       --order paper --task-index $TASK 2>&1 | tee outputs/budget_task${TASK}.log
 done
 
-# M4：MicroRouter v0（go/no-go 驗證）
+# ── M4：MicroRouter v0 go/no-go 驗證────────────────────────────────────────
 python train_router_v0.py \
     --backbone-ckpt outputs/qpmil_paper_fold1.pt \
     --order paper --fold 1 --epochs 5 2>&1 | tee outputs/router_v0_f1.log
-
-# 看 go/no-go 結果
 grep "go/no-go" outputs/router_v0_f1.log
 ```
 
@@ -128,12 +164,30 @@ echo "sync done"
 
 ---
 
+## Step 4.5：確認 skill bank 存在（inference-only 的前提）
+
+```bash
+# 確認 N2 訓練結果是否已存在（每 fold 一份 .pt）
+ls -lh outputs/skill_bank_reverse_f*.pt
+
+# 如果只有 fold 1，想重用：
+#   --skill-bank-in outputs/skill_bank_reverse_f1.pt
+
+# 如果沒有（新 pod 或被刪了）→ 重跑 N2 訓練那段（Step 4 N2 區塊）存一次
+```
+
+> **skill bank 不走 git**（太大），跨 pod 要用 `scp` 或 Network Volume 保留。
+
+---
+
 ## 常見問題
 
 | 問題 | 解法 |
 |---|---|
-| `ModuleNotFoundError: navipath_moe` | 確認在 `/workspace/01_navipath` 目錄下，不是子目錄 |
+| `ModuleNotFoundError: navipath_moe` | 確認在 `$REPO` 目錄下，執行 `cd $REPO` |
 | `No such file: can_dataset` | 確認 symlink 或 volume 掛對了 |
 | transformers tokenizer 錯誤 | `pip install "transformers>=4.40,<5" huggingface-hub==0.36.2` |
-| CUDA out of memory | 減小 `--epochs` 或每任務 `--max-train 200` 先跑 1 fold |
-| 想要 10-fold | `for FOLD in 1 2 3 4 5 6 7 8 9 10; do python train_qpmil_runner.py --fold $FOLD --order paper --save-ckpt; done` |
+| CUDA out of memory | 減小 `--epochs` 或加 `--max-train 200` 先小跑 |
+| λ sweep 重複在訓練 | 沒帶 `--skill-bank-in`！加上後會完全跳過訓練 |
+| skill bank .pt 不見了 | 新 pod 需重跑 N2 訓練那段重新存，或用 Network Volume 保留 |
+| 想要 3-fold | `for F in 1 2 3; do python eval_sequential_observation.py ... --fold $F --skill-bank-out outputs/skill_bank_reverse_f${F}.pt; done` |
