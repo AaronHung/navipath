@@ -41,16 +41,19 @@ from train_qpmil_runner import load_qpmil_cfg, build_loaders, TASK_ORDERS
 from train_router_v0 import train_router_one_task, iter_slides
 
 
-def _make_agent(backbone, bank, *, step_size, redundancy, device, policy_mode="router"):
+def _make_agent(backbone, bank, *, step_size, redundancy, device, policy_mode="router",
+                normalize_base=True, redundancy_mode="maxsim"):
     """建一個 agent；mode 由 ObserveConfig 控制（per-budget 重設 budget）。"""
-    cfg = ObserveConfig(budget=64, step_size=step_size, redundancy_weight=redundancy)
+    cfg = ObserveConfig(budget=64, step_size=step_size, redundancy_weight=redundancy,
+                        normalize_base=normalize_base, redundancy_mode=redundancy_mode)
     return ContinualSequentialNavigationAgent(backbone, bank, ContextGate("oracle"),
                                               cfg, device=device, policy_mode=policy_mode)
 
 
 @torch.no_grad()
 def eval_grid(backbone, nsm_bank, nonsm_bank, loader, device, eval_task,
-              budgets, step_size, redundancy, max_eval, policy_mode="router"):
+              budgets, step_size, redundancy, max_eval, policy_mode="router",
+              normalize_base=True, redundancy_mode="maxsim"):
     """回傳各 mode 的 {budget: acc}。
 
     policy_mode="router"：{nsm_seq, nsm_oneshot, nonsm_seq, nonsm_oneshot}（訓練式 + NSM 對照）。
@@ -71,7 +74,8 @@ def eval_grid(backbone, nsm_bank, nonsm_bank, loader, device, eval_task,
             "nonsm_oneshot": (nonsm_bank, 10 ** 9,  0.0),
         }
     agents = {m: _make_agent(backbone, bank, step_size=ss, redundancy=rw, device=device,
-                             policy_mode=policy_mode)
+                             policy_mode=policy_mode,
+                             normalize_base=normalize_base, redundancy_mode=redundancy_mode)
               for m, (bank, ss, rw) in modes.items()}
 
     correct = {m: {("All" if k == 0 else k): 0 for k in budgets} for m in modes}
@@ -103,7 +107,11 @@ def main():
     ap.add_argument("--top-k", type=int, default=64, help="router 訓練時的 Top-K")
     ap.add_argument("--budgets", default="0,128,64,32,16", help="0=All")
     ap.add_argument("--step-size", type=int, default=16, help="sequential 每輪看幾個")
-    ap.add_argument("--redundancy", type=float, default=0.5, help="sequential 冗餘懲罰權重")
+    ap.add_argument("--redundancy", type=float, default=0.5, help="sequential 冗餘懲罰權重 (λ)")
+    ap.add_argument("--normalize-base", type=lambda x: x.lower() != "false", default=True,
+                    help="route A：base_score z-score 正規化 (true/false)")
+    ap.add_argument("--redundancy-mode", choices=["maxsim", "centroid"], default="maxsim",
+                    help="route A：maxsim=MMR(預設), centroid=舊向心")
     ap.add_argument("--eval-task", type=int, default=0,
                     help="要評估的（舊）任務 index；oracle gate 用此 id 選 skill")
     ap.add_argument("--eval-tasks", default="",
@@ -195,7 +203,9 @@ def main():
         results, n_slides = eval_grid(backbone, nsm_bank, nonsm_bank,
                                       loaders[eval_ds]["test"], device, eval_t,
                                       budgets, args.step_size, args.redundancy, args.max_eval,
-                                      policy_mode=args.policy_mode)
+                                      policy_mode=args.policy_mode,
+                                      normalize_base=args.normalize_base,
+                                      redundancy_mode=args.redundancy_mode)
         for m, d in results.items():
             print(f"[seqobs]   {m:>14}: {d}", flush=True)
 
@@ -207,7 +217,10 @@ def main():
                 "task_index": eval_t, "gate": "oracle",
                 "policy_mode": args.policy_mode,
                 "budgets": list(budgets), "step_size": args.step_size,
-                "redundancy": args.redundancy, "n_eval_slides": n_slides,
+                "redundancy": args.redundancy,
+                "normalize_base": args.normalize_base,
+                "redundancy_mode": args.redundancy_mode,
+                "n_eval_slides": n_slides,
                 "results": results,
             }, f, indent=2)
         print(f"[seqobs] saved {out_path}", flush=True)
