@@ -393,6 +393,21 @@
       </div>
     </details>
 
+    <details class="qa cyan" open>
+      <summary>★ 別混淆：便宜記憶(CL軸) vs 多步(Agent軸) + 7/20 時間軸 + λ 白話</summary>
+      <div class="body">
+        <p><strong>兩件獨立的事</strong>：便宜記憶＝CL 機制提升（跟多步無關）；多步＝Agent 提升（跟記憶無關）。N6 同推兩條但是獨立工作流。</p>
+        <table class="mini"><tr><th></th><th>CL 軸（記憶）</th><th>Agent 軸（觀察）</th></tr>
+          <tr><td>pilot 現況</td><td>NSM＝每任務存整份 router（貴、上界）</td><td>one-shot 靜態 top-K</td></tr>
+          <tr><td>N6→7/20</td><td><strong>便宜記憶（建議 LoRA）</strong>逼近上界</td><td><strong>多步 route A(已做)+B</strong></td></tr>
+          <tr><td>之後</td><td>PEFT 擴展更多癌種</td><td>多步 RL(route C)、move/zoom</td></tr>
+        </table>
+        <p><strong>7/20 時間軸</strong>：✅ LoRA 便宜記憶、✅ 多步 route A/B（非 RL）、✅(可選) 對稱+EWC；❌ 多步 <strong>RL</strong>(route C)、move/zoom、RLHF/醫師軌跡＝7/20 之後；⚠️ task-free gate 勉強。<span class="win">PEFT 是 7/20；多步是 7/20（A/B 非 RL）；多步 RL 不是 7/20。</span></p>
+        <p><strong>多步怎麼做</strong>：改前 router 打分不看「已看過什麼」→ 分 4 輪選 64 跟一次選 64 一樣（假多步）。改後每看完一批，對「跟已選很像」的 patch 扣分→逼 agent 看新區域→第 t 步依賴前面＝真多步。不訓練、不需醫師軌跡。</p>
+        <p><strong>λ＝多樣性旋鈕</strong>：扣分扣多重。λ=0→退化 one-shot（擠一區）；λ 大→強迫看遍不同區；太大→為追新跳過病灶。故 sweep 1/2/4 找最佳（合成驗證 λ=0 擠一群、λ=4 覆蓋四群）。</p>
+      </div>
+    </details>
+
 
     <div class="secttl slate">六、budget 省算力的其他表示 + 術語對照（對外溝通）· wiki 11</div>
 
