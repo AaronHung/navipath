@@ -1,108 +1,117 @@
 # NaviPath-CL 雙月報告（2026-07-03）
 
-> 本稿對應 [SPEC-04](../specs/features/SPEC-04-report-0703.md)。敘事基調見 `STORYLINE.md`。
-> **保密**：上位計畫一律以 **North Star** 代稱，文中不含計畫名稱／單位／主持人等可識別資訊。
-> 結果已於 7/2 凍結（frozen snapshot，見 §8）。
+> 敘事基調見 `STORYLINE.md`；架構 authoritative 見 `specs/decisions/ADR-0006-*.md`；答辯底稿見 `docs/wiki/07~10`。
+> **保密**：上位計畫一律以 **North Star** 代稱，文中不含計畫名稱／單位／主持人。
+> 結果凍結快照：reverse order、3-fold、oracle gate、seq 模式。來源 `outputs/RESULTS_seqobs_20260628.md`、`analyze_seqobs_n3.py`。
 
 ---
 
 ## 1. 一頁摘要
 
-- **Pivot**：原「trainable patch selector 會遺忘 + Top-K 省算力」主軸已被否定（encode-all 下省算力站不住、無 CL 元件的 selector 會忘屬預期）。我們將其**升格**為 **NaviPath-CL**：研究 budgeted/agentic WSI 設定下，**navigation policy 本身的 continual learning**。
-- **定位**：NaviPath-CL 是 **North Star**（physician-like WSI navigation agent 長期願景）的 **Phase-0 CL 原型**。
-- **主發現**（reverse order，舊任務 ESCA，budget 64，跨 fold 平均）：單一共用 policy 會遺忘（0.333）、EWC 正則不足（0.400）、而 **per-task navigation skill memory 可恢復舊任務導覽行為（0.933）**，超越所有 training-free heuristic（0.844）。
-- **結論**：WSI 持續學習不只在「怎麼分類」，也在「怎麼看」；需要一層 **Continual Navigation Layer (CNL)** 與其核心 **Navigation Skill Memory (NSM)**。
+- **定位**：NaviPath-CL 是 **North Star**（physician-like WSI navigation agent）的 **Phase-0 原型**。它在一個**凍結的診斷 backbone** 之上，外掛一層通用、backbone-agnostic 的 **Continual Navigation Layer (CNL)**——研究 budgeted／agentic WSI 設定下「**該看哪些 patch（navigation policy）**」的 **continual learning**。QPMIL-VL 只是本次插入的一個 backbone 實例。
+- **問題（呼應 ZeroSlide）**：近期工作顯示「**分類**」可用 frozen 病理 VLM 做 zero-shot、天生不遺忘。但只要要做有預算、會主動「看哪」的 agent，就需要一個**可訓練的 navigator**，而它一旦在任務流上連續訓練就會**遺忘**。**「navigation 也需要 CL」這條臨床關鍵軸，過去沒人立起來。**
+- **主結果**（reverse，4 任務平均 mACC，budget=64，跨 3 fold）：
+  - naive 連續訓練單一 policy → **mACC 0.595、Forgetting 0.454**（最舊任務 esca@64 掉到 **0.333**）。
+  - 我們的 **per-task Navigation Skill Memory（NSM）→ mACC 0.935、Forgetting 0**（esca@64 救回 **0.911**）。
+  - **zero-shot navigator**（不訓練、frozen-FM 文字相似度選 patch）→ **mACC 0.858**：強，但仍輸我們，且 > naive。
+- **結論**：WSI 持續學習不只在「怎麼分類」，也在「**怎麼看**」。navigation 會遺忘、且可被記憶修復；zero-shot navigation 是強 baseline 但不足，**continual navigation learning 再加值（+0.077 mACC）**。
 
 ---
 
-## 2. 背景與 pivot
+## 2. 背景與定位（為何不以 QPMIL 開頭）
 
-舊主軸聚焦「selector 遺忘診斷 + 算力節省」，存在三個致命問題：
-1. 在 encode-all-then-aggregate 流程下，昂貴的 CONCH 特徵抽取已完成，「省算力」不成立。
-2. 沒有 CL 元件的 selector 會遺忘是預期現象，不構成貢獻。
-3. decoupled backbone 的 Forgetting=0 是結構恆等，非成果。
-
-**Pivot 結論**：不另開新坑，而是把既有 selector 工作升格為「Continual WSI Navigation Agent」，把焦點從「分類遺忘」移到 **navigation / observation policy 的遺忘**。舊結果保留為 motivation 與 ablation。
-
-詳見 `specs/decisions/ADR-0001`。
-
----
-
-## 3. 問題定位
+- **通用 module = 我們的貢獻本體**：CNL 是一層獨立、可換 backbone 的導覽層。它的通用性由**介面契約**界定（backbone 需提供 per-patch features、子集可定義的預測、per-patch relevance；見 `docs/wiki/05`）。**QPMIL-VL 是 Phase-0 的一個 instance，不是要打敗的對手，也不是敘事起點。**
+- **與 North Star 對齊**：在尚無真實醫師軌跡與 RLHF 前，把 full navigation 抽象為 **budgeted patch selection over precomputed CONCH features**，以 WSI label 作 weak supervision。後續（task-free gate、skill consolidation、move/zoom、醫師軌跡、RLHF）見 §6 roadmap。
 
 ![Problem](../outputs/figs/Fig_problem.png)
 
-WSI 為 gigapixel 影像、含數千個 patch。實務（與醫師行為）下，模型只能在 **有限觀察預算 (budgeted observation)** 內決定「看哪些 patch」——這是一個 navigation / observation policy。當任務以串流方式持續到來（continual task stream），此 policy 會對舊任務發生 **catastrophic forgetting**：對新任務看得準，對舊任務「不會看了」。
-
-Paper framing：**continual learning of the observation policy under budgeted WSI inference**。
-
 ---
 
-## 4. North Star 對齊
-
-NaviPath-CL 是 North Star physician-like WSI navigation agent 的 **Phase-0 原型**。在尚無真實醫師軌跡與 RLHF 資料前，我們把 full navigation 抽象為 **budgeted patch selection over precomputed CONCH features**，並以 WSI label / QPMIL-VL 的 prototype-text 訊號作 weak supervision。後續階段（task-free gate、skill consolidation、move/zoom、醫師軌跡與 RLHF）見 §7 roadmap。
-
-![Roadmap](../outputs/figs/Fig_roadmap.png)
-
----
-
-## 5. 方法
+## 3. 方法（兩條正交軸）
 
 ![Architecture](../outputs/figs/Fig1_arch.png)
 
-- **Diagnostic backbone（frozen）**：QPMIL-VL 作為 prompt/prototype-based、rehearsal-free 的診斷 backbone 與 weak supervisory signal。**不是 replay、也不是要打敗的對手**；它是 CNL 的一個 backbone instance（框架 backbone-agnostic）。
-- **Continual Navigation Layer (CNL)**：在 backbone 之上、可持續訓練的 navigation policy（patch → importance score → Top-K 觀察）。
-- **Navigation Skill Memory (NSM)**：保存各任務的導覽技能，緩解 navigation 的 catastrophic forgetting。本次以 per-task skill bank（上界）與 EWC（負面 baseline）兩種機制驗證；consolidation / parameter-merging 為 ongoing。
+> 通用架構（vector）見 `site/figs/arch_navipath_cl.svg`；互動說明見看板 `site/architecture.html`。
 
-實作：`navipath_moe/continual_agent.py`（NSM + Context Gate + Agent）、`navipath_moe/qpmil_adapter.py`（backbone 4-hook）、`eval_continual_agent.py`（end-to-end 評估）。
+| 軸 | 管什麼 | 模組 |
+|---|---|---|
+| **Agent（怎麼看）** | 一張片內、在 budget K 下多步累積證據決定「下一步看哪、何時停」，輸出可解釋 Navigation Trace | Observation State + Sequential Budgeted Observation |
+| **CL（怎麼不忘）** | 學了新癌症後，舊癌症「該看哪」不退化 | Navigation Skill Memory (NSM) + Context Gate |
+
+- **Navigation Policy（router）**：唯一可訓練元件；對每個 patch 打「對診斷的判別力」分數。**無 patch-level 標註**，只用 slide-level label 弱監督學會 where-to-look（聚合被選 patch → 凍結分類頭 → 對 label 算 loss，梯度只回 router）。
+- **NSM 的角色（重要、誠實）**：Phase-0 以 per-task 權重快照存技能、oracle gate 取用。**這是「no-interference 上界」，不是終點方法**——它的作用是**框出問題大小**（naive 下界 0.595 ↔ 上界 0.935 的 gap）。真正的方法是用**便宜記憶**（prompt／prototype／low-rank／replay）逼近此上界，並以 **task-free gate** 取代 oracle。詳見 `docs/wiki/10`。
+- **zero-shot navigator baseline（回應 ZeroSlide）**：同一架構、只把打分來源從 router 換成 CONCH patch-text 相似度，不訓練。用來檢驗「zero-shot navigation 夠不夠」。
+
+實作：`navipath_moe/continual_agent.py`（NSM/Gate）、`navipath_moe/sequential_observation.py`（序列觀察 + `policy_mode`）、`eval_sequential_observation.py`、`analyze_seqobs_n3.py`。
 
 ---
 
-## 6. Pilot 證據（mechanism selection）
+## 4. Pilot 結果（N2 訓練 / N3 分析）
 
-核心問題：**哪一種 continual 機制適合 WSI navigation policy？** 以決策樹回答（reverse order，舊任務 ESCA，budget 64，跨 3 fold 平均）：
+任務序 reverse：0=esca（最舊）→ 1=rcc → 2=brca → 3=lung（最新）。oracle gate，seq，budget=64，3-fold mean±std。
 
-![Mechanism](../outputs/figs/Fig_mechanism.png)
+### 4.1 Retention（學完全部任務後各任務 acc@64）
 
-| 機制 | 舊任務 ACC@64 | 對應 North Star 設計 | 判定 |
+| 任務 | continual+NSM（我們） | naive continual（會忘） | zero-shot navigator |
 |---|---|---|---|
-| shared（單一共用 policy） | **0.333** | 單一導覽 agent | NO-GO（< heuristic 0.844） |
-| EWC（weight 正則） | **0.400** | weight 正則 / alignment | 不足 |
-| per-task NSM（skill memory） | **0.933** | PEFT per-task / skill bank | **恢復（> heuristic）** |
-| best heuristic（random/proto/semantic） | 0.844 | — | 參考線 |
-| consolidation / parameter-merging | — | 參數合併 | **ongoing（尚無 navigation 數字）** |
+| 0 esca（最舊） | **0.911±0.031** | 0.333±0.144 | 0.800±0.094 |
+| 1 rcc | **0.965±0.025** | 0.576±0.076 | 0.904±0.060 |
+| 2 brca | **0.944±0.013** | 0.549±0.054 | 0.841±0.040 |
+| 3 lung（最新） | 0.922±0.020 | 0.922±0.020 | 0.888±0.026 |
 
-**決策樹**：
-- Q1 單一共用 policy 能學會所有任務嗎？→ 否（新任務 GO、舊任務 0.333，GO 0/3 fold）。
-- Q2 weight 正則（EWC）能修嗎？→ 不足（0.400，GO 0/3）。
-- Q3 舊的 navigation skill 真的丟失了嗎？→ 否（per-task NSM 0.933，GO 3/3）→ 訊號仍在，是「記憶」問題。
+> lung（最新任務）三者相同＝合理 sanity（最新任務還沒被後續任務覆蓋）。
 
-![Budget curve](../outputs/figs/Fig_budget_curve.png)
+![Retention](../site/figs/n3_retention_bar.png)
 
-**詮釋**：問題不在缺乏診斷訊號，而在缺乏 **continual navigation memory**。這正是 CNL/NSM 的動機。
+### 4.2 CL 指標
+
+| 指標 | continual+NSM（我們） | naive continual | zero-shot |
+|---|---|---|---|
+| mACC（越高越好） | **0.935±0.017** | 0.595±0.035 | 0.858±0.038 |
+| Forgetting（舊任務，越小越好） | **0.000** | 0.454±0.041 | 0.000 |
+
+### 4.3 Budget 效率（最舊任務 esca）
+
+![Budget curve](../site/figs/n3_esca_budget_curve.png)
+
+我們在 budget 16/32/64 都維持 ~0.91（達到甚至超過 acc@All 0.867）→ **少少 patch 就抓到診斷重點**；naive 在各 budget 崩到 ~0.33。
+
+### 4.4 三層敘事
+1. **naive 可訓練 navigator 嚴重遺忘**（0.595 / Forgetting 0.454）→ 問題真實。
+2. **NSM 完全修復**（0.935 / Forgetting 0）→ 問題可解（上界）。
+3. **zero-shot 強但仍輸我們**（0.858 < 0.935）且 **> naive（0.595）**→ 回應 ZeroSlide：不訓練比亂訓練好，但 learned + 記憶的 navigation 再加值。
 
 ---
 
-## 7. 結論與 pivot plan
+## 5. 老師疑慮回應（已寫入 `docs/wiki/09,10`、看板答辯筆記）
 
-- **結論**：navigation policy 在 WSI continual learning 下會遺忘；NSM 能恢復舊任務導覽行為。提出 CNL 作為未來 agentic WSI 診斷的可持續學習層。
-- **Future（3 週內可選補強 → 論文）**：
-  1. task-free **Context Gate**（用 QPMIL MaxPooling query 對 prototype-match / full-patch logits 推 task），取代 oracle gate。
-  2. **skill consolidation / parameter-merging**（控制 per-task 參數膨脹）。
-  3. 多尺度 move/zoom、醫師軌跡、order-aware reward、RLHF（North Star 後續階段）。
+- **「encode 完才選，budget 還省算力嗎？」**：承認在 encode-all 流程下「省 predictor 算力」站不住。budget 的真正角色改為 **(a) 臨床可稽核**（短、有序、可驗證的 Navigation Trace 證據鏈）、**(b) 下游每-patch 成本高**（餵大型 VLM／agent 逐 patch／高倍重讀／人工複閱時 K≪n 放大百倍）、**(c) 指向 select-before-encode 的未來設計**。
+- **「selection forgetting 是 trivial 嗎？」**：承認任何 trainable 模組連續訓練都會忘。我們的貢獻**不是「發現遺忘」**，而是 **(1) 把 navigation 立成 CL 新軸並量化、(2) 提供修復（NSM 上界 + 便宜記憶路線）、(3) task-free gate 才是真難題**。
+- **「不就是把東西存下來？」**：是的，pilot NSM 就是上界工具；**零遺忘是起點不是賣點**（見 §3、`docs/wiki/10`）。
 
 ---
 
-## 8. 誠實邊界（do-not-claim / frozen snapshot）
+## 6. 結論與 roadmap
 
-**凍結結果（7/2）**：本報告數字與圖來自 `outputs/MECHANISM_SELECTION.md`、`outputs/RESULTS_SUMMARY.md` 與 `outputs/figs/`，報告期間不再加新實驗。
+- **結論**：navigation policy 在 WSI 持續學習下會遺忘；NSM 證明可修復；zero-shot navigation 不足以取代 continual navigation learning。提出 CNL 作為 agentic WSI 診斷的可持續學習層。
 
-**尚未完成 / 不宣稱**：
-- 不宣稱 paper 已完成、不宣稱 compute-saving、不宣稱 task-free / consolidation 已解決。
-- per-task / EWC 的 **paper-order 對稱** 補跑待 RunPod（目前 reverse order 完整、paper order 只有 shared）。
-- agent end-to-end 的**真數字重現（0.933）** 已備好 RunPod 指令（`eval_continual_agent.py`），Mac 僅完成 pipeline smoke。
+![Roadmap](../outputs/figs/Fig_roadmap.png)
+
+- **下一步**：
+  1. **多步 agent 真增益**：路線 A 推論期自適應選擇（λ/redundancy，Mac 可做）→ B 信心早停（τ）→ C RL 學搜尋（reward = 最小 budget 下診斷正確，label-only，需 GPU）。
+  2. **便宜記憶**：per-task full router → prompt／low-rank／replay，壓縮記憶並共享主幹。
+  3. **task-free Context Gate** 取代 oracle。
+  4. paper-order 對稱實驗、EWC 正則 baseline（論文補強，需 GPU）。
+
+---
+
+## 7. 誠實邊界（do-not-claim）
+
+- **多步尚未贏單步**：本版 seq == oneshot（差 0），因 policy 分數尚未依賴已觀察內容（靜態打分）。屬設計增量、非 bug；修法見 §6.1 與 `docs/wiki/10` §3。
+- 不宣稱 compute-saving、不宣稱 task-free / consolidation 已解決、不宣稱論文完成。
+- 目前完整資料為 **reverse order、3-fold**；paper-order 對稱與 EWC 在新框架的數字待補（GPU）。
 - oracle context gate 為 upper bound；task-free gate 為 future。
 
 ---
 
-*附：開發過程與決策記錄見 `specs/`（README/ADR/SPEC/WORKLOG）。*
+*附：開發與決策記錄見 `specs/`（README/ADR/SPEC/WORKLOG）；答辯底稿見 `docs/wiki/07~10`、看板 `site/notes.html`。*
