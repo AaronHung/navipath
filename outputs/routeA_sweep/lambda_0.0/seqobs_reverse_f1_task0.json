@@ -1,0 +1,45 @@
+{
+  "order": "reverse",
+  "fold": 1,
+  "eval_task": "tcga_esca",
+  "task_index": 0,
+  "gate": "oracle",
+  "policy_mode": "router",
+  "budgets": [
+    0,
+    64,
+    32,
+    16
+  ],
+  "step_size": 16,
+  "redundancy": 0.0,
+  "normalize_base": true,
+  "redundancy_mode": "maxsim",
+  "n_eval_slides": 15,
+  "results": {
+    "nsm_seq": {
+      "All": 0.0667,
+      "64": 0.8667,
+      "32": 0.8667,
+      "16": 0.8667
+    },
+    "nsm_oneshot": {
+      "All": 0.0667,
+      "64": 0.8667,
+      "32": 0.8667,
+      "16": 0.8667
+    },
+    "nonsm_seq": {
+      "All": 0.0667,
+      "64": 0.2,
+      "32": 0.1333,
+      "16": 0.2667
+    },
+    "nonsm_oneshot": {
+      "All": 0.0667,
+      "64": 0.2,
+      "32": 0.1333,
+      "16": 0.2667
+    }
+  }
+}

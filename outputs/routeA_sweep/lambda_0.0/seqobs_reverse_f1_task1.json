@@ -1,0 +1,45 @@
+{
+  "order": "reverse",
+  "fold": 1,
+  "eval_task": "tcga_rcc",
+  "task_index": 1,
+  "gate": "oracle",
+  "policy_mode": "router",
+  "budgets": [
+    0,
+    64,
+    32,
+    16
+  ],
+  "step_size": 16,
+  "redundancy": 0.0,
+  "normalize_base": true,
+  "redundancy_mode": "maxsim",
+  "n_eval_slides": 76,
+  "results": {
+    "nsm_seq": {
+      "All": 0.0658,
+      "64": 0.9605,
+      "32": 0.9474,
+      "16": 0.9342
+    },
+    "nsm_oneshot": {
+      "All": 0.0658,
+      "64": 0.9605,
+      "32": 0.9474,
+      "16": 0.9342
+    },
+    "nonsm_seq": {
+      "All": 0.0658,
+      "64": 0.25,
+      "32": 0.2895,
+      "16": 0.3289
+    },
+    "nonsm_oneshot": {
+      "All": 0.0658,
+      "64": 0.25,
+      "32": 0.2895,
+      "16": 0.3289
+    }
+  }
+}
