@@ -59,11 +59,13 @@ seq 有跑，但跟 oneshot 完全一樣（差 0）。原因：**現在的 polic
 
 ### 3.3 把多步做出來的三條路（由易到難，標清楚要不要 GPU）
 
-| 路線 | 原理 | 要 GPU？ | 何時 |
+| 路線 | 原理 | 要 GPU？ | 狀態 |
 |---|---|---|---|
-| **A. 推論期自適應選擇** | 下一 patch 分數＝`relevance − λ·(與已選 patch 相似度)`（邊際資訊增益）。step t 依賴 step 1..t-1 → seq 真的 ≠ oneshot | ❌ Mac 即可 | 最快、可本週 |
-| **B. 信心驅動早停 / 自適應 budget** | 邊看邊算 backbone 信心 margin，超過 τ 就停。trajectory 由停止規則 emergent（看到夠確定就停，臨床語意強） | ❌ 無需新訓練 | 接著做 |
+| **A. 推論期自適應選擇** | 下一 patch 分數＝`norm(relevance) − λ·(與已選『任一』patch 最大相似度, MMR)`。step t 依賴 step 1..t-1 → seq 真的 ≠ oneshot | ❌ Mac 即可 | **✅ 已實作**（`sequential_observation.py`：`normalize_base` + `redundancy_mode="maxsim"`）；待 RunPod 驗 acc |
+| **B. 信心驅動早停 / 自適應 budget** | 邊看邊算 backbone 信心 margin，超過 τ 就停。trajectory 由停止規則 emergent（看到夠確定就停，臨床語意強） | ❌ 無需新訓練 | 已有 `confidence_threshold` 鉤子，待調 |
 | **C. RL / policy-gradient 學搜尋** | 選 patch 當序列決策，reward＝最小 budget 下診斷正確（**label-only，仍無 trajectory**）。policy 吃 Observation State 決定下一步，REINFORCE/bandit 訓練 | ✅ 需 GPU | North Star（真正可學的 agent） |
+
+> **2026-06-28 實作筆記（路線 A）**：把 base_score 做 **z-score 正規化**（單調 → one-shot top-K 不變），redundancy 從「與已看平均（centroid）」改成 **MMR「與已選任一 patch 的最大相似度」**。合成驗證（4 群、高分群故意冗餘）：λ=0 全擠高分群；**λ=2 開始分散、λ=4 覆蓋四群** → 機制正確。**關鍵：正規化後預設 `redundancy=0.5` 太小，λ 應 sweep ~1–4。** 這就是「seq==oneshot 是調參問題」的具體解。
 
 ### 3.4 「調參」到底在調什麼（原理）
 - **λ / redundancy**：控「探索新區域 vs 深挖高分區」。太小→退化成 oneshot；太大→亂跑漏病灶。**這版 seq==oneshot 的直接原因之一就是它相對 router 分數尺度太小。**
