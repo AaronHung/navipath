@@ -19,8 +19,11 @@
   .qa.teal{border-left:4px solid #15695a;}
   .qa.purple{border-left:4px solid #7a5bb0;}
   .qa.amber{border-left:4px solid #c08a2d;}
+  .qa.cyan{border-left:4px solid #2b8a8a;}
+  .qa.slate{border-left:4px solid #5a6b7a;}
   .secttl{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin:26px 0 6px;}
   .secttl.blue{color:#3a78c2;} .secttl.teal{color:#15695a;} .secttl.purple{color:#7a5bb0;} .secttl.amber{color:#c08a2d;}
+  .secttl.cyan{color:#2b8a8a;} .secttl.slate{color:#5a6b7a;}
   table.mini{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px;}
   table.mini th,table.mini td{border:1px solid var(--line);padding:6px 10px;text-align:left;}
   table.mini th{background:rgba(0,0,0,.03);}
@@ -46,7 +49,7 @@
   <div class="wrap">
     <div class="kicker">Defense Notes · append-only</div>
     <h1 class="title sm">答辯筆記：必須理解才能守護的觀念</h1>
-    <p class="subtitle">被老師/reviewer 問時的完整底稿，持續添增。來源：<code>docs/wiki/07~10</code>。點標題展開。藍＝我們在做什麼（N2）、綠＝N3 分析、紫＝ZeroSlide / 老師疑慮、<span style="color:#c08a2d">琥珀＝機制防禦＋多步（最關鍵）</span>。</p>
+    <p class="subtitle">被老師/reviewer 問時的完整底稿，持續添增。來源：<code>docs/wiki/07~11</code>。點標題展開。藍＝我們在做什麼（N2）、綠＝N3 分析、紫＝ZeroSlide / 老師疑慮、<span style="color:#c08a2d">琥珀＝機制防禦＋多步</span>、<span style="color:#2b8a8a">青＝機制逐層拆解（入門）</span>、<span style="color:#5a6b7a">灰＝budget 省算力＋術語對照</span>。</p>
   </div>
 </header>
 
@@ -340,11 +343,96 @@
       </div>
     </details>
 
+
+    <div class="secttl cyan">五、機制逐層拆解（不懂我們設計的人從這看）· wiki 11</div>
+
+    <details class="qa cyan" open>
+      <summary>唯一在訓練的東西＝一個小 MLP（router ≈ 533KB）</summary>
+      <div class="body">
+        <p>router＝MicroRouterV0＝兩層 MLP（<code>Linear(516→256)+GELU+Linear(256→1)</code>，~13.2 萬參數）。吃「每個 patch 的 512 維 CONCH 特徵＋4 個相似度統計」→ 吐一個「重要度分數」。<strong>這個 MLP 就是 policy。</strong></p>
+        <table class="mini"><tr><th>元件</th><th>訓練？</th><th>來源</th></tr>
+          <tr><td>patch 特徵 Z_i</td><td class="bad">❌ 凍結</td><td>CONCH 預算好</td></tr>
+          <tr><td>class-text / prototype</td><td class="bad">❌ 凍結</td><td>QPMIL</td></tr>
+          <tr><td><strong>router MLP 權重</strong></td><td class="win">✅ 唯一在學</td><td>弱監督訓練</td></tr>
+          <tr><td>prompt</td><td>—</td><td>這版沒有（N6 才加）</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details class="qa cyan">
+      <summary>怎麼訓練？CONCH 已會看片，router 還能學啥？</summary>
+      <div class="body">
+        <p><strong>弱監督（只有 slide label）</strong>：router 打分→取最高 K 個→softmax 加權聚合→丟凍結分類頭→跟真實 label 算 loss→<strong>梯度只回 router</strong>。為降 loss，router 被迫把判別區打高分（沒人標病灶，自學）。</p>
+        <p><strong>CONCH 只會把單一 patch 變 embedding（看懂一塊），不會在幾千 patch 裡取捨/排序。</strong> router 學的正是這個「跨 patch 選擇」——CONCH 沒有的能力。</p>
+      </div>
+    </details>
+
+    <details class="qa cyan" open>
+      <summary>★ NSM 存的是「鑰匙」，不是「訊號」</summary>
+      <div class="body">
+        <p><strong>naive</strong>：只有一份 router，換 task＝同組權重被新 task 覆寫（esca 被 lung 蓋掉→看 esca 選錯 0.333）。<strong>NSM</strong>：每學完一個 task 把那份 router 權重<strong>拷貝一份</strong>存起來，gate 取對應那份。</p>
+        <p>存的具體＝每任務一份 router <code>state_dict</code>（mlp 權重）。<strong>不是</strong> 64 個 patch、<strong>不是</strong> features、<strong>不是</strong> prototype/prompt。佐證：<code>skill_bank_*.pt ≈ 2.1MB = 4×533KB</code>。</p>
+        <table class="mini"><tr><th>口語</th><th>精確對應</th><th>會不會丟</th></tr>
+          <tr><td>導覽能力</td><td>router 的打分函數（13.2 萬權重）</td><td class="bad">naive 會被覆寫而丟</td></tr>
+          <tr><td>訊號（判別資訊）</td><td>判別 pattern 在 frozen CONCH+分類頭</td><td class="win">在 backbone，永不丟</td></tr>
+        </table>
+        <p>→ <strong>遺忘的不是訊號，是「讀取訊號的鑰匙」。</strong> 訊號本體在 frozen backbone，不需存。task-free 的難點：鑰匙存著沒問題，難在「沒 task_id 時怎麼知道開哪把鎖」（推錯就載錯）。</p>
+      </div>
+    </details>
+
+    <details class="qa cyan">
+      <summary>便宜記憶升級：prompt / LoRA / replay（N6，衝 7/20）</summary>
+      <div class="body">
+        <p>痛點：NSM 每任務存整份 533KB router（不可規模化）。三條變便宜的路：</p>
+        <table class="mini"><tr><th>方法</th><th>怎麼做</th><th>why</th><th>每任務存</th></tr>
+          <tr><td>Prompt</td><td>共用 router 凍住，每 task 學一個小 prompt 向量</td><td>共享主幹、可遷移</td><td>幾 KB</td></tr>
+          <tr><td>LoRA</td><td>router Linear 凍住，每 task 加低秩 A·B(r≈4~8)</td><td>PEFT 標準、好訓</td><td>~4K 數(小30×)</td></tr>
+          <tr><td>Replay</td><td>一份 router，訓新 task 混入舊 task 少量樣本</td><td>複習對抗遺忘</td><td>小 buffer</td></tr>
+        </table>
+        <p><strong>升級意義</strong>：從「存整份 router(上界、不可規模化)」→「存幾 KB 逼近 0.935 上界」＝可規模化、可部署的 CL navigation 真方法。<strong>7/20 誠實目標</strong>：prompt 或 LoRA 擇一 + 多步路線 A（Mac 可做）；RL/task-free gate 列之後。</p>
+      </div>
+    </details>
+
+
+    <div class="secttl slate">六、budget 省算力的其他表示 + 術語對照（對外溝通）· wiki 11</div>
+
+    <details class="qa slate" open>
+      <summary>★ budget 想講「省算力」該怎麼講？別人怎麼做的</summary>
+      <div class="body">
+        <p><strong>老師對</strong>：encode-all 下 budget 省不到 encoder 算力。真正省算力＝<strong>selection 在 encoding 之前（select-before-encode / coarse-to-fine）</strong>。可引用：</p>
+        <ul>
+          <li><strong>RLogist</strong>(Zhao et al., <strong>AAAI 2023</strong>)：RL agent 模仿醫師，跨倍率找有價值區域、<strong>不必整張高倍率密集抽特徵</strong>→真省 encoder 算力、路徑可解釋。<span class="win">但它單任務、無 CL</span>→我們的增量＝RLogist 式快觀察＋<strong>continual（skill memory）</strong>，正是老師說的「frozen FM＋continual selector」。</li>
+          <li><strong>Differentiable Patch Selection</strong>(Cordonnier et al., <strong>CVPR 2021</strong>)：可微分 Top-K 在下游處理前選 patch 省高解析影像算力，端到端、免 bbox。</li>
+          <li>coarse-to-fine / thumbnail-guided ROI（先低倍率縮圖找 ROI 再高倍率 encode）；anytime/早停推論（對應多步路線 B）。</li>
+        </ul>
+        <p><strong>避免被誤讀的表示法</strong>：evidence efficiency / diagnostic sufficiency（最少證據達足夠診斷）、test-time observation budget（呼應醫師有限注意力）、auditable evidence trail（可稽核證據鏈）、anytime budgeted inference。誠實講：現在 budget 是診斷探針/可稽核，<strong>select-before-encode 版才真省算力，是 roadmap</strong>（有 RLogist/Cordonnier 背書方向）。</p>
+      </div>
+    </details>
+
+    <details class="qa slate">
+      <summary>★ 術語對照：oracle 等黑話 → reviewer 看得懂</summary>
+      <div class="body">
+        <table class="mini"><tr><th>我們內部詞</th><th>reviewer 友善說法</th><th>白話</th></tr>
+          <tr><td>oracle gate</td><td><em>task-aware (oracle) setting</em></td><td>測試時假設已知這片屬哪任務（理想上界）</td></tr>
+          <tr><td>NSM（per-task router）</td><td><em>parameter isolation</em> / per-task adapters</td><td>每任務存一份專屬參數，互不干擾</td></tr>
+          <tr><td>nonsm / naive</td><td><em>naive sequential fine-tuning</em></td><td>一路微調同一模型、不防遺忘</td></tr>
+          <tr><td>navigation / where-to-look</td><td><em>patch selection policy</em></td><td>決定看哪些 patch 的策略</td></tr>
+          <tr><td>Continual Navigation Layer</td><td><em>continual patch-selection module</em></td><td>可持續學習的選片模組</td></tr>
+          <tr><td>navigation forgetting</td><td><em>forgetting of the selection policy</em></td><td>選片策略對舊任務退化</td></tr>
+          <tr><td>context gate (task-free)</td><td><em>task-identity inference</em></td><td>自動判斷這片屬哪任務</td></tr>
+          <tr><td>budget K</td><td><em>observation / patch budget</em></td><td>推論時最多看幾個 patch</td></tr>
+          <tr><td>Navigation Trace</td><td><em>selected-patch sequence / evidence trail</em></td><td>選出的 patch 順序＝證據鏈</td></tr>
+          <tr><td>zero-shot navigator</td><td><em>training-free patch selection</em></td><td>不訓練、用 FM 相似度選片</td></tr>
+        </table>
+        <p>replay、task-free、PEFT、LoRA、prompt 已是通用詞，保留即可。</p>
+      </div>
+    </details>
+
   </div>
 </section>
 
 <footer>
-  <div class="wrap">來源：<code>docs/wiki/07_what-we-do-deep-dive.md</code>、<code>08_N3-analysis-defense.md</code>、<code>09_zeroslide-and-rebuttals.md</code>、<code>10_mechanism-defense-and-multistep.md</code>（持續添增）。</div>
+  <div class="wrap">來源：<code>docs/wiki/07_what-we-do-deep-dive.md</code>、<code>08_N3-analysis-defense.md</code>、<code>09_zeroslide-and-rebuttals.md</code>、<code>10_mechanism-defense-and-multistep.md</code>、<code>11_mechanism-walkthrough-and-terms.md</code>（持續添增）。</div>
 </footer>
 
 </body>
