@@ -23,13 +23,13 @@
 
 <header class="hero compact">
   <div class="wrap">
-    <div class="kicker">進度看板 · SDD Worklog</div>
-    <h1 class="title sm">Phase-0 SDD 開發進度</h1>
-    <p class="subtitle">M0–M7 milestone 已全數完成；後續為 RunPod 補強實驗與報告 / 論文 / 年度報告。</p>
+    <div class="kicker">進度看板 · NaviPath-CL Phase-0</div>
+    <h1 class="title sm">Agent + CL Pilot 進度</h1>
+    <p class="subtitle">N0–N4 完成（架構 + sequential observation + RunPod 實驗 + 分析 + 報告稿）；N5（7/3 報告）收尾中，下一階段 N6 便宜記憶 + 論文。</p>
     <div class="progress">
-      <span class="pct">100%</span>
-      <div class="track"><div class="fill" style="width:100%"></div></div>
-      <span style="color:var(--muted);font-size:14px;">8 / 8 milestones（M0–M7）</span>
+      <span class="pct">~75%</span>
+      <div class="track"><div class="fill" style="width:75%"></div></div>
+      <span style="color:var(--muted);font-size:14px;">N0–N4 done · N5 in progress（共 N0–N8）</span>
     </div>
   </div>
 </header>
@@ -41,27 +41,26 @@
     <div class="kanban">
 
       <div class="col">
-        <h3>Done <span class="n">8</span></h3>
-        <div class="task done"><div class="id">M0 · 6/27</div><div class="ti">specs/ 骨架</div><div class="ds">README(SDD 規則) + 00_master_spec + ADR-0001~0005 + WORKLOG</div></div>
-        <div class="task done"><div class="id">M1 · 6/28</div><div class="ti">continual_agent.py</div><div class="ds">SPEC-01：NavigationSkillBank + ContextGate + ContinualWSINavigationAgent</div></div>
-        <div class="task done"><div class="id">M2 · 6/29</div><div class="ti">證據彙整</div><div class="ds">SPEC-02：collect / plot 現有 json，mechanism_table.py</div></div>
-        <div class="task done"><div class="id">M3 · 6/30</div><div class="ti">agent end-to-end</div><div class="ds">重現 old ESCA@64≈0.933 + mechanism-selection 表 + 決策樹 argument</div></div>
-        <div class="task done"><div class="id">M4 · 7/1</div><div class="ti">5 張核心圖</div><div class="ds">SPEC-03：draw_arch 改名 + 問題 / CL memory / EWC negative / roadmap</div></div>
-        <div class="task done"><div class="id">M5 · 7/2</div><div class="ti">結果凍結</div><div class="ds">SPEC-04：凍結結果 + 雙月報告稿</div></div>
-        <div class="task done"><div class="id">M6 · 7/3</div><div class="ti">報告</div><div class="ds">架構 + pilot + pivot plan</div></div>
-        <div class="task done"><div class="id">M7 · 7/3–7/15</div><div class="ti">論文初稿</div><div class="ds">SPEC-05：paper framing 初稿</div></div>
+        <h3>Done <span class="n">6</span></h3>
+        <div class="task done"><div class="id">SDD M0–M7</div><div class="ti">specs 骨架 + 工具</div><div class="ds">README/ADR/SPEC/WORKLOG + continual_agent + figures（歷史 SDD 里程碑）</div></div>
+        <div class="task done"><div class="id">N0 · 6/27</div><div class="ti">架構鎖定</div><div class="ds">通用 CNL 架構圖（SVG）+ wiki 04/05 + 新 SOP + 看板</div></div>
+        <div class="task done"><div class="id">N1 · 6/28</div><div class="ti">Sequential Observation</div><div class="ds">sequential_observation.py（State+多步+NSM+gate）+ zero-shot policy_mode；6/6 smoke</div></div>
+        <div class="task done"><div class="id">N2 · 6/28</div><div class="ti">RunPod 實驗</div><div class="ds">reverse 3-fold × 4 任務 × {nsm/naive/zero-shot}；skill bank 已存</div></div>
+        <div class="task done"><div class="id">N3 · 6/28</div><div class="ti">分析 + 圖</div><div class="ds">analyze_seqobs_n3.py → RESULTS md + retention/budget 圖（見 D 區）</div></div>
+        <div class="task done"><div class="id">N4 · 7/2</div><div class="ti">雙月報告稿</div><div class="ds">bimonthly_2026-07-03 改寫為 agent+CL 真實數字；wiki 07–11 答辯底稿</div></div>
       </div>
 
       <div class="col">
         <h3>In progress <span class="n">1</span></h3>
-        <div class="task wip"><div class="id">mechanism</div><div class="ti">Parameter merging / consolidation</div><div class="ds">consolidate.py 變體；只講 ongoing，不 claim solved</div></div>
+        <div class="task wip"><div class="id">N5 · 7/3</div><div class="ti">口頭報告收尾</div><div class="ds">talk_2026-07-03.md（5–7 分鐘講稿 + Q&A 速查）；對著看板講</div></div>
       </div>
 
       <div class="col">
-        <h3>Next <span class="n">3</span></h3>
-        <div class="task todo"><div class="id">RunPod</div><div class="ti">對稱證據補強</div><div class="ds">paper-order per-task / EWC 對稱 run（CUDA 重算）→ 回傳本機</div></div>
-        <div class="task todo"><div class="id">7/15</div><div class="ti">老師 review</div><div class="ds">論文初稿差不多定稿，送老師 review</div></div>
-        <div class="task todo"><div class="id">7/20</div><div class="ti">年度報告</div><div class="ds">annual_2026-07-20_outline → 定稿</div></div>
+        <h3>Next <span class="n">4</span></h3>
+        <div class="task todo"><div class="id">N6 · 7/3–14</div><div class="ti">便宜記憶 + 論文</div><div class="ds">prompt 或 LoRA 擇一逼近 NSM 上界 + 多步路線 A；論文初稿</div></div>
+        <div class="task todo"><div class="id">RunPod</div><div class="ti">對稱補強</div><div class="ds">paper-order 對稱 + EWC baseline（需重開 GPU）</div></div>
+        <div class="task todo"><div class="id">N7 · 7/15</div><div class="ti">老師 review</div><div class="ds">論文初稿送 review</div></div>
+        <div class="task todo"><div class="id">N8 · 7/20</div><div class="ti">年度報告</div><div class="ds">annual_2026-07-20_outline → 定稿</div></div>
       </div>
 
     </div>
@@ -81,7 +80,10 @@
           <tr><td>持續導覽 agent</td><td><code>navipath_moe/continual_agent.py</code></td><td><span class="pill done">完成</span></td></tr>
           <tr><td>mechanism 表工具</td><td><code>tools/mechanism_table.py</code></td><td><span class="pill done">完成</span></td></tr>
           <tr><td>5 張核心圖</td><td><code>outputs/figs/Fig*.png</code></td><td><span class="pill done">完成</span></td></tr>
-          <tr><td>雙月報告稿</td><td><code>reports/bimonthly_2026-07-03.md</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>N2/N3 結果 + 分析</td><td><code>outputs/RESULTS_seqobs_20260628.md</code>、<code>analyze_seqobs_n3.py</code>、<code>site/figs/n3_*.png</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>雙月報告稿（agent+CL）</td><td><code>reports/bimonthly_2026-07-03.md</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>7/3 口頭講稿</td><td><code>reports/talk_2026-07-03.md</code></td><td><span class="pill done">完成</span></td></tr>
+          <tr><td>答辯底稿 wiki</td><td><code>docs/wiki/07–11</code>、<code>site/notes.html</code></td><td><span class="pill done">完成</span></td></tr>
           <tr><td>論文初稿大綱</td><td><code>paper/NaviPath-CL_draft_outline.md</code></td><td><span class="pill done">完成</span></td></tr>
           <tr><td>年度報告大綱</td><td><code>reports/annual_2026-07-20_outline.md</code></td><td><span class="pill done">完成</span></td></tr>
           <tr><td>對稱證據（paper-order / EWC）</td><td><code>outputs/</code>（RunPod 回傳）</td><td><span class="pill wip">待跑</span></td></tr>

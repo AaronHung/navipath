@@ -178,3 +178,61 @@ M3 三項交付狀態：
 - 新增 `tests/test_sequential_observation.py`：6 個 smoke（budget 上限、trace 順序一致、one-shot==Top-K、seq≠one-shot、早停、agent e2e）。
 - 驗證：`ruff check` 乾淨；`PYTHONPATH=. python tests/test_sequential_observation.py` → **6/6 PASS**（CPU、合成輸入，未碰 canonical outputs）。
 - **下一步 N2（RunPod）**：掛 frozen QPMIL backbone + 真資料，跑 acc@K vs acc@All、有/無 NSM old-task 保留、sequential vs one-shot。
+
+---
+
+## 2026-06-28 — N2：RunPod 第一批實驗（reverse 3-fold）
+
+做了什麼：
+- 加 `eval_sequential_observation.py` 的 `--skill-bank-out/in`、`--eval-tasks`、`--policy-mode`：訓練一次存 NSM bank，之後純 inference 補滿 4 任務 retention + zero-shot（避免重訓）。
+- RunPod 跑 reverse fold 1/2/3：每 fold 訓 4 任務 router、存 `outputs/skill_bank_reverse_f{1,2,3}.pt`；評估 nsm/nonsm（router）與 zero-shot navigator。
+
+產出：`outputs/seqobs_reverse_f*_task{0,1,2,3}.json` + `*_policy-zeroshot.json` + skill banks，全 push（commit 56dae04 / f7f8672）。
+
+踩雷：RunPod 的 `QPMIL-VL/configs/main.yaml` 等 config 是本機路徑、反覆擋 pull/push → 改用 `git update-index --skip-worktree` 一勞永逸。
+
+下一步：N3 Mac 分析。
+
+---
+
+## 2026-06-28 — N3：Mac 分析 + 結果圖
+
+做了什麼：
+- 新增 `analyze_seqobs_n3.py`：彙整 24 個 JSON → `outputs/RESULTS_seqobs_20260628.md` + `site/figs/n3_retention_bar.png`、`n3_esca_budget_curve.png`。
+- 看板新增「D · N2/N3 Pilot 結果」。
+
+數字（reverse 3-fold, oracle, seq, budget=64）：
+- mACC：continual+NSM **0.935±0.017** / naive **0.595±0.035** / zero-shot **0.858±0.038**。
+- Forgetting：NSM **0** / naive **0.454**。esca@64：我們 0.911 vs naive 0.333。
+- 三層故事：naive 嚴重遺忘 → NSM 修復 → zero-shot 強但仍輸我們（且贏 naive）。
+- 誠實：seq == oneshot（差 0），policy 尚靜態。
+
+commit 09fa11c。
+
+下一步：N4 報告稿。
+
+---
+
+## 2026-06-28 — N4：雙月報告稿改寫 + 答辯底稿 wiki
+
+做了什麼：
+- `reports/bimonthly_2026-07-03.md` 從舊 mechanism-selection/GO-NO-GO 敘事**改寫**為 agent+CL 通用敘事 + 真實 N2/N3 數字（commit 0fc909a）。
+- 新增 wiki 10（機制防禦＋多步路線圖）、wiki 11（機制逐層拆解白話 + budget 省算力其他表示 RLogist/Cordonnier + 術語對照）；看板答辯筆記擴到六區（藍/綠/紫/琥珀/青/灰）。架構頁加兩個「讀圖必懂」。commit fb0f0b8。
+
+重要釐清（寫進 wiki，供答辯）：
+- NSM = parameter-isolation **上界**（不是賣點）；賣點＝便宜記憶逼近上界 + navigation 需 CL 這條軸 + task-free gate 難題。
+- 多步靠**結果回饋**（label-only），不需醫師 trajectory；存的是 policy 不是步驟。
+
+下一步：N5 口頭報告收尾。
+
+---
+
+## 2026-06-28 — N5：7/3 口頭報告收尾
+
+做了什麼：
+- 新增 `reports/talk_2026-07-03.md`（5–7 分鐘講稿大綱 + 7 張投影片極簡版 + Q&A 速查表，對應答辯筆記顏色）。
+- 看板 kanban 更新為 N-phase（N0–N4 done / N5 in progress / N6–N8 next）；hero 進度改 ~75%；交付物清單補 N2/N3 結果、講稿、wiki 答辯底稿。
+
+狀態：**N6 之前全部完成、雙邊 repo 同步。** 7/3 由 Aaron 對外呈現（簡報轉換為人工步驟）。
+
+下一步（N6，7/3 之後）：便宜記憶（prompt/LoRA 擇一）逼近 NSM 上界 + 多步路線 A（Mac 可做）；論文初稿。RunPod 可關，需要時重開做 paper-order 對稱 / EWC baseline。

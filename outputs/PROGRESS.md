@@ -144,3 +144,16 @@ mean=0.397，GO 0/3）→ **混淆排除，崩因是 recency 非樣本少**。�
 近期任務 6/6 GO，且 lung/esca 都有「最近→GO、最舊→崩」翻轉。發現坐實。下一步：出圖/寫稿 或 Plan B。
 
 ## TASK 4 — RunPod：結果推回 GitHub  [未開始]
+
+---
+
+## 2026-06-28 — Sequential Observation pilot（N2/N3，新框架）  [完成]
+
+> 舊 v0.4 TASK 系列為 selector 階段紀錄；以下為 pivot 後的 NaviPath-CL agent+CL pilot。詳見 `specs/worklog/WORKLOG.md` N2–N5。
+
+- **N2（RunPod）**：reverse fold 1/2/3，每 fold 訓 4 任務 router、存 `outputs/skill_bank_reverse_f{1,2,3}.pt`；評估 nsm/nonsm + zero-shot navigator。產出 `outputs/seqobs_reverse_f*_task*.json`(+`_policy-zeroshot`)，push（56dae04 / f7f8672）。
+- **N3（Mac）**：`analyze_seqobs_n3.py` → `outputs/RESULTS_seqobs_20260628.md` + `site/figs/n3_*.png`。
+  - budget=64, 3-fold：mACC NSM **0.935** / naive **0.595** / zero-shot **0.858**；Forgetting NSM **0** / naive **0.454**；esca@64 0.911 vs 0.333。
+  - seq == oneshot（policy 尚靜態，列 future）。
+- **不重訓鐵則**：唯一吃時間是 router 訓練（~3hr/fold）；評估一律 `--skill-bank-in` 純 inference。
+- RunPod config 本機路徑用 `git update-index --skip-worktree` 解卡。RunPod 可關（產物全在 git）。

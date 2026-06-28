@@ -428,6 +428,19 @@
       </div>
     </details>
 
+    <details class="qa slate" open>
+      <summary>★ 策略建議：把 NSM 對外講成「parameter isolation」反而強化賣點</summary>
+      <div class="body">
+        <p>對外把 NSM 講成 <strong>parameter isolation</strong>（CL 社群現成術語：每任務存專屬參數、互不干擾），有三個好處：</p>
+        <ul>
+          <li>reviewer 一聽就懂，不用解釋我們的自創詞。</li>
+          <li>它本來就是已知的「no-forgetting 上界類方法」→ 自然把「<strong>NSM 是上界 baseline</strong>」這件事講白，避免被誤會我們在 claim 一個新防遺忘法。</li>
+          <li>反而把焦點導向我們真正的賣點：<strong>用便宜記憶（prompt/LoRA/replay）逼近這個 parameter-isolation 上界</strong>，且加上 navigation/agent 與 task-free gate 這條沒人做的軸。</li>
+        </ul>
+        <p class="win">一句話：承認「上界＝parameter isolation（貴、不可規模化）」不丟臉，它讓「便宜記憶逼近上界」「navigation 需要 CL」兩個真貢獻更突出。</p>
+      </div>
+    </details>
+
   </div>
 </section>
 
