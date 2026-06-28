@@ -18,8 +18,9 @@
   .qa.blue{border-left:4px solid #3a78c2;}
   .qa.teal{border-left:4px solid #15695a;}
   .qa.purple{border-left:4px solid #7a5bb0;}
+  .qa.amber{border-left:4px solid #c08a2d;}
   .secttl{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin:26px 0 6px;}
-  .secttl.blue{color:#3a78c2;} .secttl.teal{color:#15695a;} .secttl.purple{color:#7a5bb0;}
+  .secttl.blue{color:#3a78c2;} .secttl.teal{color:#15695a;} .secttl.purple{color:#7a5bb0;} .secttl.amber{color:#c08a2d;}
   table.mini{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px;}
   table.mini th,table.mini td{border:1px solid var(--line);padding:6px 10px;text-align:left;}
   table.mini th{background:rgba(0,0,0,.03);}
@@ -45,7 +46,7 @@
   <div class="wrap">
     <div class="kicker">Defense Notes · append-only</div>
     <h1 class="title sm">答辯筆記：必須理解才能守護的觀念</h1>
-    <p class="subtitle">被老師/reviewer 問時的完整底稿，持續添增。來源：<code>docs/wiki/07~09</code>。點標題展開。藍＝我們在做什麼（N2）、綠＝N3 分析、紫＝ZeroSlide / 老師疑慮。</p>
+    <p class="subtitle">被老師/reviewer 問時的完整底稿，持續添增。來源：<code>docs/wiki/07~10</code>。點標題展開。藍＝我們在做什麼（N2）、綠＝N3 分析、紫＝ZeroSlide / 老師疑慮、<span style="color:#c08a2d">琥珀＝機制防禦＋多步（最關鍵）</span>。</p>
   </div>
 </header>
 
@@ -294,11 +295,56 @@
       </div>
     </details>
 
+
+    <div class="secttl amber">四、機制底層原理＋多步路線（最關鍵防禦）· wiki 10</div>
+
+    <details class="qa amber" open>
+      <summary>★★ 老師會問：「你們不就是把東西存下來，當然不忘？」怎麼答</summary>
+      <div class="body">
+        <p><strong>先承認他對</strong>：pilot 的 NSM 確實是「每任務存一份 router 權重（533KB），oracle 挑對的那份用」。所以 nsm＝<strong>no-interference 上界</strong>（不共享參數→不互相干擾→定義上零遺忘），≈「per-task 獨立模型＋oracle」。<strong>「我們零遺忘」本身不是貢獻。</strong></p>
+        <p><strong>那貢獻是什麼？（三點，每點都不是「存下來」）</strong></p>
+        <ul>
+          <li><strong>① 問題的成立（最核心）</strong>：ZeroSlide 證了「分類」可 zero-shot 不忘；但只要做 budgeted/agentic 的「看哪」，就需要 trainable navigator，而它 sequential train 就崩（mACC 0.595、Forgetting 0.454）。<strong>我們是第一個把「navigation 也需要 CL」這條軸立起來並量化的人。</strong></li>
+          <li><strong>② NSM 是「量問題大小」的上界，不是終點</strong>：per-task 權重把上界(0.935)和下界(0.595)框出來，這個 <strong>gap＝真正 CL 方法要填的空間</strong>。科學在「用<strong>便宜記憶</strong>（prompt/prototype/low-rank/replay）逼近上界」→ 那時是「存小技能＋共享主幹」，<strong>不是存全部</strong>（＝prompt-based CL 的精神搬到 navigation）。</li>
+          <li><strong>③ Gate 才是真難題</strong>：oracle 是上界假設；部署沒 task id，要<strong>從片子本身推</strong>「現在像哪任務、調哪份技能」。「存下來」說法<strong>完全沒回答這個</strong>。</li>
+        </ul>
+        <p class="win">一句話：零遺忘是<strong>起點不是賣點</strong>。我們主張的是 (a) navigation 需要 CL 這條新軸、(b) 用便宜記憶逼近上界、(c) task-free gate 才是難題。</p>
+      </div>
+    </details>
+
+    <details class="qa amber" open>
+      <summary>★★ 多步沒做＝沒時間嗎？沒有醫師看片 trajectory 怎麼訓練多步？</summary>
+      <div class="body">
+        <p><strong>seq==oneshot 不是沒時間，是設計還沒到</strong>：現在 policy 是<strong>靜態</strong>的——router 給 patch 的分數<strong>只看 patch 自己</strong>，不看「我已看過什麼」。所以一次選 64 或分 4 輪每輪 16，選出的集合一樣。<strong>多步要有意義，policy 必須「狀態相依」。</strong></p>
+        <p><strong>關鍵澄清：多步 ≠ 存醫師的步驟。</strong> 我們<strong>不模仿醫師路徑（非 imitation）</strong>、也<strong>不需要 gaze trajectory</strong>。多步是靠<strong>結果回饋</strong>長出來的：唯一監督仍是「整張片診斷對不對」。policy 學的是「最少 budget 把診斷信心拉到最高」的<strong>搜尋策略</strong>，「該放大/轉向」是副產品。<strong>我們存的不是步驟，是 policy（小參數）；步驟是 eval 時當場跑出來的。</strong></p>
+        <table class="mini"><tr><th>路線</th><th>原理</th><th>GPU?</th></tr>
+          <tr><td><strong>A 推論期自適應</strong></td><td>下一分數＝relevance − λ·(與已選相似度)，step t 依賴前面 → seq≠oneshot</td><td class="win">❌ Mac 即可</td></tr>
+          <tr><td><strong>B 信心早停</strong></td><td>信心 margin&gt;τ 就停，自適應 budget（看到夠確定就停）</td><td class="win">❌ 無需訓練</td></tr>
+          <tr><td><strong>C RL 學搜尋</strong></td><td>選 patch 當序列決策，reward＝最小 budget 下診斷正確（label-only，仍無 trajectory）</td><td class="bad">✅ 需 GPU</td></tr>
+        </table>
+        <p><strong>「調參」在調什麼</strong>：λ/redundancy（探索 vs 深挖；太小退化成 oneshot）、base_score 正規化（不然懲罰被淹沒，這就是這版 seq==oneshot 主因）、step_size/最大步數、τ 早停閾值、RL reward 係數(acc−cost·步數)。</p>
+      </div>
+    </details>
+
+    <details class="qa amber">
+      <summary>結果 ↔ 主張對應表（哪個數字證明哪句話）</summary>
+      <div class="body">
+        <table class="mini"><tr><th>你想講的話</th><th>看哪個結果</th><th>數字</th></tr>
+          <tr><td>navigation 會遺忘（問題成立）</td><td>nonsm / Forgetting</td><td class="bad">mACC 0.595、Forgetting 0.454、esca@64 0.333</td></tr>
+          <tr><td>遺忘可救回（可解、上界）</td><td>nsm</td><td class="win">mACC 0.935、Forgetting 0、esca@64 0.911</td></tr>
+          <tr><td>少少 patch 抓到重點</td><td>esca budget 曲線</td><td>@16/32/64 ≈ 0.91，達/超過 @All 0.867</td></tr>
+          <tr><td>zero-shot 強但不夠</td><td>zero vs nsm/nonsm</td><td>zero 0.858 &lt; nsm 0.935；但 &gt; naive 0.595</td></tr>
+          <tr><td>多步增益（還沒出來，誠實）</td><td>seq vs oneshot</td><td>差 0 → 標「policy 尚靜態，見上」</td></tr>
+        </table>
+        <p><strong>What</strong>：凍結 backbone 上做 budgeted、可持續學習的「看哪」層。<strong>Why</strong>：分類能 zero-shot 不忘，但 agentic「看哪」需 trainable navigator 而它會忘，這條軸沒人處理。<strong>How</strong>：router 弱監督學 where-to-look；NSM 框出上界；gate 路由；序列觀察輸出可稽核 trace。</p>
+      </div>
+    </details>
+
   </div>
 </section>
 
 <footer>
-  <div class="wrap">來源：<code>docs/wiki/07_what-we-do-deep-dive.md</code>、<code>08_N3-analysis-defense.md</code>、<code>09_zeroslide-and-rebuttals.md</code>（持續添增）。</div>
+  <div class="wrap">來源：<code>docs/wiki/07_what-we-do-deep-dive.md</code>、<code>08_N3-analysis-defense.md</code>、<code>09_zeroslide-and-rebuttals.md</code>、<code>10_mechanism-defense-and-multistep.md</code>（持續添增）。</div>
 </footer>
 
 </body>

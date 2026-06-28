@@ -66,6 +66,23 @@
         <p class="sec-sub" style="margin:8px 0 0">面對任務流，navigation 技能被累積 / 路由 / 更新；舊任務「該看哪」不退化。</p>
       </div>
     </div>
+
+    <div class="note warn" style="margin-top:18px">
+      <h4>讀圖必懂①：NSM 是「問題上界」，不是「把東西存下來」</h4>
+      <ul>
+        <li>Phase-0 的 NSM＝每任務存一份 router 權重、oracle 取用 → 這是 <strong>no-interference 上界</strong>（定義上零遺忘）。<strong>零遺忘是起點不是賣點。</strong></li>
+        <li>貢獻＝<strong>(a)</strong> 立起「navigation 也需要 CL」這條新軸（naive 0.595 vs 上界 0.935 的 gap 就是證據）；<strong>(b)</strong> 用<strong>便宜記憶</strong>（prompt/低秩/replay）逼近上界，而非存全部；<strong>(c)</strong> 把 oracle 換成 <strong>task-free gate</strong>（真難題）。</li>
+        <li>細節：<code>docs/wiki/10</code> §2 ＆ 看板「答辯筆記 · 琥珀區」。</li>
+      </ul>
+    </div>
+    <div class="note lock" style="margin-top:14px">
+      <h4>讀圖必懂②：Sequential Observation 目前是「狀態尚未驅動」的多步</h4>
+      <ul>
+        <li>這版 seq == oneshot（差 0），因為 policy 分數只看 patch 自己、不看已看內容。<strong>是設計增量，不是 bug。</strong></li>
+        <li>多步靠<strong>結果回饋</strong>長出（label-only），<strong>不需醫師 trajectory</strong>；存的是 policy（小參數），步驟是當場跑出來的。</li>
+        <li>路線：A 推論期自適應(λ/redundancy，Mac 即可) → B 信心早停(τ) → C RL 學搜尋(需 GPU)。細節：<code>docs/wiki/10</code> §3。</li>
+      </ul>
+    </div>
   </div>
 </section>
 

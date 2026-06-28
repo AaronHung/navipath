@@ -108,6 +108,39 @@
   </div>
 </section>
 
+<section>
+  <div class="wrap">
+    <h2><span class="sec-no">D</span>N2 / N3 Pilot 結果（latest · reverse, 3 folds）</h2>
+    <p class="sec-sub">凍結 backbone，只動 navigation 層。oracle gate，seq 模式，budget=64。來源：<code>outputs/RESULTS_seqobs_20260628.md</code>、<code>analyze_seqobs_n3.py</code>。</p>
+    <div class="stats">
+      <div class="stat"><div class="num good">0.935</div><div class="lab">mACC · continual+NSM（我們）</div><div class="cmp">±0.017 · Forgetting 0</div></div>
+      <div class="stat"><div class="num bad">0.595</div><div class="lab">mACC · naive continual（會忘）</div><div class="cmp">Forgetting 0.454</div></div>
+      <div class="stat"><div class="num">0.858</div><div class="lab">mACC · zero-shot navigator</div><div class="cmp">強 baseline，仍 &lt; 我們</div></div>
+      <div class="stat"><div class="num good">0.911</div><div class="lab">esca@64 · 我們</div><div class="cmp">vs naive 0.333（修復 +0.58）</div></div>
+    </div>
+    <p class="sec-sub" style="margin-top:6px">三層故事：<b>naive 可訓練 navigator 嚴重遺忘</b> → <b>NSM 完全修復（我們）</b> → <b>zero-shot 很強但仍輸我們</b>（continual navigation learning 再加值 +0.077，且同樣零遺忘）。誠實點：seq≈one-shot，agentic 序列增益待調參。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>任務（reverse）</th><th>continual+NSM（我們）</th><th>naive continual</th><th>zero-shot</th></tr></thead>
+        <tbody>
+          <tr><td>0 esca（最舊）</td><td><b>0.911±0.031</b></td><td class="">0.333±0.144</td><td>0.800±0.094</td></tr>
+          <tr><td>1 rcc</td><td><b>0.965±0.025</b></td><td>0.576±0.076</td><td>0.904±0.060</td></tr>
+          <tr><td>2 brca</td><td><b>0.944±0.013</b></td><td>0.549±0.054</td><td>0.841±0.040</td></tr>
+          <tr><td>3 lung（最新）</td><td>0.922±0.020</td><td>0.922±0.020</td><td>0.888±0.026</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <figure class="fig">
+      <img src="figs/n3_retention_bar.png" alt="Per-task retention bar chart">
+      <figcaption><b>Fig. Retention.</b> 學完全部任務後各任務 acc@64：NSM（綠）守住、naive（紅）對舊任務崩、zero-shot（紫）居中。Source: <code>site/figs/n3_retention_bar.png</code>。</figcaption>
+    </figure>
+    <figure class="fig">
+      <img src="figs/n3_esca_budget_curve.png" alt="esca budget curve">
+      <figcaption><b>Fig. Budget curve（esca, 最舊任務）.</b> 各 budget 下 navigation retention：我們在小預算仍守住，naive 崩到 ~0.33。Source: <code>site/figs/n3_esca_budget_curve.png</code>。</figcaption>
+    </figure>
+  </div>
+</section>
+
 <footer>
   <div class="wrap">
     進度看板 · 對應 <code>specs/worklog/WORKLOG.md</code> 與 <code>outputs/PROGRESS.md</code>。狀態以 repo 實際檔案為準。
