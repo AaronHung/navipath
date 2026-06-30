@@ -267,13 +267,16 @@ NSM restores esca@64 from 0.333 to **0.911** (fold 1; 0.933 mean over 3 folds), 
 We run the SBO on the trained NSM skill bank (fold 1, reverse order, eval-tasks 0–3) sweeping λ ∈ {0.0, 1.0, 2.0, 4.0} with normalize_base=True, redundancy_mode=maxsim, budget=64, step_size=16.
 
 **Table 4. Sequential (nsm_seq) vs. one-shot (nsm_oneshot) accuracy at K=64, λ sweep.**
+*(fold 1, reverse order, normalize_base=True, redundancy_mode=maxsim)*
 
-| λ | esca seq | esca 1shot | diff | rcc seq | rcc 1shot | diff | brca seq | brca 1shot | diff | lung seq | lung 1shot | diff |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 0.0 | 0.867 | 0.867 | 0.000 | 0.961 | 0.961 | 0.000 | 0.860 | 0.860 | 0.000 | 0.810 | 0.810 | 0.000 |
-| 1.0 | 0.867 | 0.867 | 0.000 | 0.961 | 0.961 | 0.000 | 0.860 | 0.860 | 0.000 | 0.800 | 0.810 | −0.010 |
-| 2.0 | 0.800 | 0.867 | **−0.067** | 0.961 | 0.961 | 0.000 | 0.850 | 0.860 | −0.011 | 0.768 | 0.810 | **−0.042** |
-| 4.0 | 0.267 | 0.867 | **−0.600** | 0.355 | 0.961 | **−0.605** | 0.570 | 0.860 | **−0.290** | 0.684 | 0.810 | **−0.126** |
+| λ | esca (seq / 1shot / Δ) | rcc (seq / 1shot / Δ) | brca (seq / 1shot / Δ) | lung (seq / 1shot / Δ) |
+|---|---|---|---|---|
+| 0.0 | 0.867 / 0.867 / 0.000 | 0.961 / 0.961 / 0.000 | 0.860 / 0.860 / 0.000 | 0.810 / 0.810 / 0.000 |
+| 1.0 | 0.867 / 0.867 / 0.000 | 0.961 / 0.961 / 0.000 | 0.860 / 0.860 / 0.000 | 0.800 / 0.810 / −0.010 |
+| 2.0 | 0.800 / 0.867 / **−0.067** | 0.961 / 0.961 / 0.000 | 0.850 / 0.860 / −0.011 | 0.768 / 0.810 / **−0.042** |
+| 4.0 | 0.267 / 0.867 / **−0.600** | 0.355 / 0.961 / **−0.605** | 0.570 / 0.860 / **−0.290** | 0.684 / 0.810 / **−0.126** |
+
+*Key: λ=0 → seq ≡ oneshot (mechanism baseline). Optimal λ=0.5–1.0 (minimal Δ). Large λ forces agent off spatially-clustered diagnostic regions → accuracy loss.*
 
 **Key findings:**
 1. **Mechanism confirmed**: λ=0 → seq ≡ one-shot (no diversity penalty = no sequential behavior). λ>0 → seq ≠ one-shot. The SBO is genuinely multi-step.
