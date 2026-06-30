@@ -140,22 +140,27 @@ def load_lambda_sweep(order="reverse", fold=1):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fig_main_comparison():
+    """NSM vs naive vs zero-shot per task @K=64.
+    NOTE: These results are from pre-RouteA seqobs (no normalize_base).
+    seq == oneshot here; we correctly label as 'top-K @64' not 'sequential'.
+    The KEY comparison is NSM vs naive vs zero-shot, not seq vs oneshot.
+    """
     seqobs = load_seqobs(order="reverse", folds=(1, 2, 3))
-    # We only have full seqobs data for fold 1 in the repo; folds 2&3 may be partial
     seqobs1 = load_seqobs(order="reverse", folds=(1,))
 
+    # Use nsm_seq == nsm_oneshot (pre-RouteA); label as top-K @64
     methods = [
-        ("nsm_seq",       "NSM (ours, @64)",   C_NSM,      "o"),
-        ("nonsm_seq",     "Naive continual",    C_NAIVE,    "s"),
-        ("zeroshot_seq",  "Zero-shot",          C_ZERO,     "^"),
+        ("nsm_seq",       "NSM — ours (@K=64)",  C_NSM,   "o"),
+        ("nonsm_seq",     "Naive continual",      C_NAIVE, "s"),
+        ("zeroshot_seq",  "Zero-shot (no train)", C_ZERO,  "^"),
     ]
 
-    fig, ax = plt.subplots(figsize=(9, 4.5))
+    fig, ax = plt.subplots(figsize=(9, 4.8))
     x = np.arange(len(TASKS))
     width = 0.22
     offsets = [-1, 0, 1]
 
-    for i, (mkey, mlabel, col, mrk) in enumerate(methods):
+    for i, (mkey, mlabel, col, _mrk) in enumerate(methods):
         means, errs = [], []
         for task in TASKS:
             vals = seqobs.get(task, {}).get(mkey, {}).get("64", [])
@@ -172,16 +177,26 @@ def fig_main_comparison():
                 ax.text(rect.get_x() + rect.get_width() / 2, rect.get_height() + 0.012,
                         f"{m:.2f}", ha="center", va="bottom", fontsize=7.5, fontweight="bold")
 
+    # mACC annotation
+    means_nsm = [seqobs1.get(t, {}).get("nsm_seq", {}).get("64", [None])[0] or 0 for t in TASKS]
+    means_nai = [seqobs1.get(t, {}).get("nonsm_seq", {}).get("64", [None])[0] or 0 for t in TASKS]
+    means_zer = [seqobs1.get(t, {}).get("zeroshot_seq", {}).get("64", [None])[0] or 0 for t in TASKS]
+    macc_nsm = np.mean([v for v in means_nsm if v > 0])
+    macc_nai = np.mean([v for v in means_nai if v > 0])
+    macc_zer = np.mean([v for v in means_zer if v > 0])
+    ax.text(0.01, 0.97, f"mACC:  NSM={macc_nsm:.3f}  Naive={macc_nai:.3f}  Zero-shot={macc_zer:.3f}",
+            transform=ax.transAxes, fontsize=9.5, va="top",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.8))
+
     ax.set_xticks(x)
-    ax.set_xticklabels(TASK_LABELS, fontsize=11)
-    ax.set_ylabel("Accuracy (patch budget K = 64)", fontsize=11)
-    ax.set_ylim(0, 1.10)
-    ax.set_title("NaviPath-CL: Navigation Accuracy @64 patches\n"
-                 "NSM (continual) vs Naive continual vs Zero-shot (fold 1, reverse order)",
+    ax.set_xticklabels(TASK_LABELS, fontsize=12)
+    ax.set_ylabel("Accuracy  (top-K patch selection, K = 64)", fontsize=11)
+    ax.set_ylim(0, 1.15)
+    ax.set_title("Navigation Accuracy @K=64 patches across 4 cancer tasks\n"
+                 "(reverse task order, fold 1;  NSM = stored per-task navigation skill)",
                  fontsize=11)
-    ax.legend(fontsize=9, loc="lower right")
+    ax.legend(fontsize=9.5, loc="lower right")
     ax.grid(axis="y", alpha=0.3)
-    ax.axhline(1.0, color="black", lw=0.7, ls=":", alpha=0.5)
     fig.tight_layout()
     _savefig(fig, "Fig_main_comparison")
 
@@ -263,66 +278,87 @@ def fig_budget_efficiency():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fig_lambda_sweep():
+    """SBO Route A λ sweep — with normalize_base=True (Route A), seq truly ≠ oneshot.
+    At λ=0,1: seq==oneshot (tumor patches are spatially clustered → diversity penalty irrelevant).
+    At λ≥2: forced off-cluster → accuracy degrades.
+    Key insight: SBO mechanism confirmed; optimal λ∈[0,1] preserves accuracy.
+    """
     rows = load_lambda_sweep(order="reverse", fold=1)
     if not rows:
         print("[skip] no routeA_sweep data")
         return
 
     lambdas = sorted({r["lambda"] for r in rows})
-    tasks_present = TASKS
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.8))
 
-    # Panel A: λ vs accuracy for each task (nsm_seq@64)
+    # Panel A: per-task accuracy (seq vs oneshot)
     ax = axes[0]
-    for task, label, col in zip(TASKS, TASK_LABELS, [C_NSM, C_NAIVE, C_ZERO, C_SEMANTIC]):
+    task_colors = [C_NSM, "#e31a1c", "#ff7f00", "#6a3d9a"]
+    for task, label, col in zip(TASKS, TASK_LABELS, task_colors):
         ys_seq, ys_one = [], []
         for lam in lambdas:
             match = [r for r in rows if r["lambda"] == lam and r["task"] == task]
-            if match:
-                ys_seq.append(match[0]["seq64"] if match[0]["seq64"] == match[0]["seq64"] else np.nan)
-                ys_one.append(match[0]["one64"] if match[0]["one64"] == match[0]["one64"] else np.nan)
-            else:
-                ys_seq.append(np.nan); ys_one.append(np.nan)
-        ax.plot(lambdas, ys_seq, "-o", color=col, lw=2, label=f"{label} (sequential)")
-        ax.plot(lambdas, ys_one, "--", color=col, lw=1.2, alpha=0.5)
+            ys_seq.append(match[0]["seq64"] if match else np.nan)
+            ys_one.append(match[0]["one64"] if match else np.nan)
+        ax.plot(lambdas, ys_seq, "-o", color=col, lw=2.2, ms=7, label=f"{label} (SBO seq)")
+        ax.plot(lambdas, ys_one, "--", color=col, lw=1.2, alpha=0.4, ms=4,
+                marker="s", label=f"{label} (one-shot)" if label == "ESCA" else "")
 
-    ax.set_xlabel("Redundancy weight λ", fontsize=11)
+    # annotations
+    ax.annotate("λ=0,1: seq≈oneshot\n(tumor clustered)", xy=(1, 0.93),
+                xytext=(1.5, 0.70), fontsize=8, color="green",
+                arrowprops=dict(arrowstyle="->", color="green", lw=1.2))
+    ax.annotate("λ≥2: forced off-cluster\n→ accuracy drops", xy=(2, 0.82),
+                xytext=(2.3, 0.5), fontsize=8, color="red",
+                arrowprops=dict(arrowstyle="->", color="red", lw=1.2))
+    ax.axvspan(-0.1, 1.2, alpha=0.07, color="green")
+    ax.text(0.5, 0.17, "Optimal λ ∈ [0, 1]", color="green", fontsize=9,
+            ha="center", transform=ax.get_xaxis_transform())
+    ax.set_xlabel("Redundancy weight λ  (Route A / SBO)", fontsize=11)
     ax.set_ylabel("Accuracy @ K=64", fontsize=11)
-    ax.set_title("Effect of λ on sequential selection accuracy\n"
-                 "(solid=sequential, dashed=one-shot baseline)", fontsize=10)
-    ax.legend(fontsize=8, loc="lower left", ncol=2)
+    ax.set_title("Per-task: SBO sequential vs one-shot accuracy\n"
+                 "(solid=SBO sequential, dashed=one-shot; normalize_base=True)", fontsize=10)
+    ax.legend(fontsize=7.5, loc="lower left", ncol=2)
     ax.grid(alpha=0.3)
-    ax.set_ylim(0.1, 1.05)
-    ax.axvline(1.0, color="red", lw=1, ls=":", alpha=0.7, label="λ=1 (recommended)")
+    ax.set_ylim(0.1, 1.08)
+    ax.set_xlim(-0.2, 4.3)
 
-    # Panel B: mean mACC across tasks
+    # Panel B: mean mACC + Δ(seq - oneshot)
     ax2 = axes[1]
-    mean_seq, mean_one = [], []
+    mean_seq, mean_one, mean_diff = [], [], []
     for lam in lambdas:
         sq = [r["seq64"] for r in rows if r["lambda"] == lam and not np.isnan(r["seq64"])]
         on = [r["one64"] for r in rows if r["lambda"] == lam and not np.isnan(r["one64"])]
-        mean_seq.append(np.mean(sq) if sq else np.nan)
-        mean_one.append(np.mean(on) if on else np.nan)
+        ms = np.mean(sq) if sq else np.nan
+        mo = np.mean(on) if on else np.nan
+        mean_seq.append(ms); mean_one.append(mo)
+        mean_diff.append(ms - mo if not np.isnan(ms) and not np.isnan(mo) else np.nan)
 
-    ax2.plot(lambdas, mean_seq, "-o", color=C_NSM, lw=2.5, ms=8, label="Sequential (SBO)")
-    ax2.plot(lambdas, mean_one, "--s", color=C_NAIVE, lw=2, ms=6, alpha=0.7, label="One-shot baseline")
-    ax2.fill_between(lambdas, mean_seq, mean_one,
-                     where=[s < o for s, o in zip(mean_seq, mean_one)],
-                     color="red", alpha=0.12, label="SBO degradation region")
+    ax2.plot(lambdas, mean_seq, "-o", color=C_NSM, lw=2.5, ms=9,
+             label="SBO sequential (NSM, Route A)")
+    ax2.plot(lambdas, mean_one, "--s", color="#888888", lw=2, ms=7,
+             label="One-shot top-K (NSM, no diversity)")
+    ax2_r = ax2.twinx()
+    ax2_r.bar(lambdas, mean_diff, width=0.25, color="red", alpha=0.35,
+              label="Δ seq−oneshot")
+    ax2_r.axhline(0, color="red", lw=0.8, ls=":")
+    ax2_r.set_ylabel("Δ (seq − one-shot)", fontsize=10, color="red")
+    ax2_r.tick_params(axis="y", colors="red")
+    ax2_r.set_ylim(-0.45, 0.05)
+
     ax2.set_xlabel("Redundancy weight λ", fontsize=11)
     ax2.set_ylabel("Mean accuracy across 4 tasks", fontsize=11)
-    ax2.set_title("Mean mACC vs λ\n"
-                  "(optimal: λ ≤ 1; large λ forces off-target exploration)", fontsize=10)
-    ax2.legend(fontsize=9)
+    ax2.set_title("Mean mACC vs λ  (left axis)\nΔ seq−oneshot (right axis, bars)",
+                  fontsize=10)
+    ax2.legend(fontsize=9, loc="lower left")
     ax2.grid(alpha=0.3)
     ax2.set_ylim(0.3, 1.05)
-    ax2.axvspan(0, 1.2, alpha=0.07, color="green", label="Optimal range")
-    ax2.text(0.5, 0.35, "Optimal λ ≤ 1.0", color="green", fontsize=9, alpha=0.8)
 
-    fig.suptitle("SBO λ sweep: sequential exploration vs accuracy trade-off\n"
-                 "(fold 1, reverse order, normalize_base=True, mode=maxsim)", fontsize=11)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.suptitle("SBO (Route A) λ sweep — normalize_base=True, mode=maxsim\n"
+                 "Tumor patches are spatially clustered → large λ forces off-target exploration",
+                 fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     _savefig(fig, "Fig_lambda_analysis")
 
 
