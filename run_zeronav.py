@@ -4,10 +4,11 @@
 Project codename: ZeroNav  (ZeroSlide-inspired backbone-agnostic navigation)
 Outputs:          outputs/zeronav/       (never touches existing outputs/)
 
-Core change from old MicroRouterV0 architecture:
+Architecture:
+  - Frozen diagnostic backbone (CONCH) provides patch embeddings Z and class text
+    features f_txt. The backbone is treated as a black-box feature extractor.
   - TextNavRouter input: [Z(512); max_text_sim(1); text_entropy(1)] = 514-dim
-  - prototype_features() removed from the entire pipeline
-  - ZeroSlide-inspired: CONCH text-patch cosine similarity as scoring foundation
+    → backbone-agnostic: no prototype features, no backbone internals accessed.
 
 Subcommands
 -----------
@@ -24,13 +25,16 @@ Subcommands
   0.0, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0
 
 RunPod usage (fold 1, reverse order, ~2–3 h total):
+  # backbone_reverse_fold1.pt  = frozen CONCH diagnostic backbone (symlink on RunPod)
   python run_zeronav.py train \\
-      --backbone-ckpt outputs/qpmil_reverse_fold1.pt \\
+      --backbone-ckpt outputs/backbone_reverse_fold1.pt \\
       --order reverse --fold 1 --epochs 5 --top-k 64
   python run_zeronav.py eval \\
-      --backbone-ckpt outputs/qpmil_reverse_fold1.pt \\
+      --backbone-ckpt outputs/backbone_reverse_fold1.pt \\
       --order reverse --fold 1
-  python run_zeronav.py analyze --order reverse --fold 1
+  python run_zeronav.py analyze \\
+      --backbone-ckpt outputs/backbone_reverse_fold1.pt \\
+      --order reverse --fold 1
 """
 from __future__ import annotations
 
