@@ -356,7 +356,7 @@ def run_analyze(args) -> None:
         else:
             backbone = build_backbone_fresh(cfg, task_order, device)
 
-        loaders = build_loaders(cfg, task_order, args.fold).to(device)
+        loaders = build_loaders(cfg, task_order, args.fold)
 
         cfg_eval = ObserveConfig(
             budget=64, step_size=64, redundancy_weight=0.0,
@@ -371,6 +371,7 @@ def run_analyze(args) -> None:
 
         for i in task_ids:
             router_i = bank.build_router(i, device)
+            f_txt = backbone.class_text_features().to(device)
             row_acc: dict[int, float] = {}
             for j in task_ids:
                 shift = 2 * j
