@@ -321,9 +321,16 @@ def run_analyze(args) -> None:
     Experiment: show that each task's TextNavRouter learned distinct
     navigation weights (different weight vectors → distinct task navigation).
     This addresses: "拿Router的Output去和TASK_ID算Similarity".
+
+    The cross-task accuracy matrix uses the same SBO selection policy as
+    eval (args.budget / args.step_size / args.redundancy_weight). Since
+    --step-size defaults to 16, running analyze without extra flags now
+    performs multi-step selection, not one-shot.
     """
     order = args.order
     task_order = TASK_ORDERS[order]
+    print(f"[zeronav analyze] selection policy: budget={args.budget} "
+          f"step_size={args.step_size} redundancy_weight={args.redundancy_weight}")
 
     bank_filename = args.skill_bank_in or f"skill_bank_{order}_f{args.fold}.pt"
     bank_path = os.path.join(args.out, "zeronav", bank_filename)
@@ -359,7 +366,8 @@ def run_analyze(args) -> None:
         loaders = build_loaders(cfg, task_order, args.fold)
 
         cfg_eval = ObserveConfig(
-            budget=64, step_size=64, redundancy_weight=0.0,
+            budget=args.budget, step_size=args.step_size,
+            redundancy_weight=args.redundancy_weight,
             normalize_base=True, redundancy_mode="maxsim",
         )
 
@@ -396,7 +404,8 @@ def run_analyze(args) -> None:
 
     # ── save ────────────────────────────────────────────────────────────────
     out_dir = os.path.join(args.out, "zeronav")
-    out_path = os.path.join(out_dir, f"router_analysis_{order}_f{args.fold}.json")
+    suffix = f"_{args.tag}" if args.tag else ""
+    out_path = os.path.join(out_dir, f"router_analysis_{order}_f{args.fold}{suffix}.json")
     with open(out_path, "w") as f:
         json.dump({
             "order": order, "fold": args.fold,
@@ -466,7 +475,8 @@ def main() -> None:
     ap.add_argument("--budget", type=int, default=64,
                     help="total patch budget K (default 64)")
     ap.add_argument("--step-size", type=int, default=16,
-                    help="patches per SBO round (default 16 → 4 rounds for K=64)")
+                    help="patches per SBO round (default 16 → 4 rounds for K=64); "
+                         "also used by analyze's cross-task matrix (default = multi-step, not one-shot)")
     ap.add_argument("--lambdas",
                     default=",".join(str(x) for x in ZERONAV_LAMBDAS),
                     help="comma-separated redundancy weights for λ sweep")
@@ -479,6 +489,10 @@ def main() -> None:
     # analyze options
     ap.add_argument("--skip-acc-matrix", action="store_true",
                     help="analyze: skip cross-task accuracy (just do weight cosine)")
+    ap.add_argument("--redundancy-weight", type=float, default=0.0,
+                    help="analyze: lambda for cross-task matrix (0 = no diversity penalty)")
+    ap.add_argument("--tag", type=str, default="",
+                    help="analyze: suffix appended to the output json filename")
     # output
     ap.add_argument("--out", default="outputs",
                     help="base output directory (default: outputs/)")
